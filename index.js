@@ -1,5 +1,5 @@
 const { Client, Intents, Collection, MessageEmbed } = require('discord.js');
-const { MongoClient } = require('mongodb');
+// const { MongoClient, ServerApiVersion } = require('mongodb');
 const dotenv = require('dotenv');
 const fs = require('node:fs');
 
@@ -14,13 +14,14 @@ const client = new Client({
     ]
 });
 
-const mongoClient = new MongoClient("mongodb://127.0.0.1:27017/");
-const db = mongoClient.db('nikabotdb');
+// const uri = `mongodb+srv://nikameru:${process.env.MONGODB_PASSWORD}@cluster0.irhpv.mongodb.net/?retryWrites=true&w=majority`;
+// const mongoClient = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
+// const db = mongoClient.db('nikabotdb');
 
 async function botStart() {
     try {
-        await mongoClient.connect();
-        console.log('~ database: ok');
+        // await mongoClient.connect();
+        // console.log('~ database: ok');
 
         await client.login(process.env.TOKEN);
         console.log('~ client: ok');
@@ -50,7 +51,7 @@ client.on('interactionCreate', async (interaction) => {
     if (!command) return;
 
     try {
-        await command.run(client, interaction, db);
+        await command.run(client, interaction);
     } catch (error) {
         console.error(error);
         await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
