@@ -1,0 +1,21 @@
+@discordjs/rest==0.3.0
+bufferutil==4.0.6
+canvas==2.9.1
+compress-images==2.0.5
+discord-api-types==0.30.0
+discord-reply==0.1.2
+discord.js==13.8.0
+dotenv==16.0.1
+erlpack==0.1.3 (git+ssh://git@github.com/discord/erlpack.git#3b793a333dd3f6a140b9168ea91e9fa9660753ce)     
+gifsicle==5.3.0
+mongodb==4.7.0
+mozjpeg==8.0.0
+node-pre-gyp==0.17.0
+node-schedule==2.1.0
+pet-pet-gif==1.0.9
+pngquant-bin==6.0.1
+pngquant==4.0.0
+svgo==2.8.0
+tesseract.js==2.1.5
+utf-8-validate==5.0.9
+zlib-sync==0.1.7
