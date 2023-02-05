@@ -14,14 +14,13 @@ const accessDeniedEmbed = new MessageEmbed()
     .setColor('#ff4646')
     .setDescription('⛔ **| Your account is already in my database.**');
 
-
-async function run(client, interaction/*, db*/) {
-    const sourceImagePath = `./${interaction.user.id}droid_screenshot.jpg`;
-    const outputImagePath = `./compressed`;
+async function run(client, interaction, db) {
+    const sourceImagePath = `./media/account_screenshots/${interaction.user.id}droid_screenshot.jpg`;
+    const outputImagePath = `./media/account_screenshots/compressed`;
     const screenshot = await interaction.options.getAttachment('screenshot').url;
     const channel = await client.channels.fetch(interaction.channelId);
     const logsChannel = await client.channels.fetch('943228726311788584');
-    //const usernameCollection = await db.collection('droidUsernames');
+    const usernameCollection = await db.collection('droidUsernames');
     const reportEmbed = new MessageEmbed();
 
     var recognizingProgressCounter = 0;
@@ -35,12 +34,11 @@ async function run(client, interaction/*, db*/) {
         'reason': 'everything is ok'
     };
 
-    //const databaseCheckedEmitter = new Emitter();
+    const databaseCheckedEmitter = new Emitter();
     const imageCompressedEmitter = new Emitter();
 
     await interaction.deferReply();
-
-    /*await usernameCollection.find({ userID: interaction.user.id }).toArray((err, result) => {
+    await usernameCollection.find({ userID: interaction.user.id }).toArray((err, result) => {
         if (err) console.log(err);
 
         if (result.length != 0) {
@@ -53,14 +51,14 @@ async function run(client, interaction/*, db*/) {
 
                 if (result.length != 0) {
                     return interaction.editReply({ embeds: [accessDeniedEmbed] });
-                } else {*/
-                    //databaseCheckedEmitter.emit('checked');
-                /*}
+                } else {
+                    databaseCheckedEmitter.emit('checked');
+                }
             });
         }
-    });*/
+    });
 
-    //databaseCheckedEmitter.on('checked', function () {
+    databaseCheckedEmitter.on('checked', function () {
         request.head(screenshot, function (err, response, body) {
             if (err) throw err;
             request(screenshot)
@@ -80,9 +78,8 @@ async function run(client, interaction/*, db*/) {
                         }
                     );
                 });
-            }
-        );
-    //});
+        });
+    });
 
     imageCompressedEmitter.on('compressed', async function () {
         await interaction.editReply({ content: `🕓 **| Проверяю твой скриншот (подожди несколько секунд)...**` });
@@ -101,37 +98,36 @@ async function run(client, interaction/*, db*/) {
                 }
             });
 
-            await tesseract.load();
             await tesseract.loadLanguage('eng');
             await tesseract.initialize('eng');
             await tesseract.setParameters({
                 tessedit_pageseg_mode: PSM.SPARSE_TEXT
             });
 
-            await tesseract.recognize(recognizePath).then(async ({ data: { text } }) => {                
+            await tesseract.recognize(recognizePath).then(async ({ data: { text } }) => {
                 report.recognizedText = text;
                 console.log(text);
 
-                // databaseCheckedEmitter.off('checked', function () {});
-                imageCompressedEmitter.off('compressed', function () {});
+                databaseCheckedEmitter.off('checked', function () {});
+                imageCompressedEmitter.off('compressed', function () { });
                 fs.unlink(outputImagePath + interaction.user.id + 'droid_screenshot.jpg', function () { });
 
-                if (matchesArray.some(match => text.includes(match)) && text.includes(report.droidUsername)) { 
+                if (matchesArray.some(match => text.includes(match)) && text.includes(report.droidUsername)) {
                     report.verdict = 'success';
 
                     await interaction.member.roles.add('1003389088960893058');
 
-                    // await usernameCollection.insertOne(
-                    //     {
-                    //         userID: interaction.user.id,
-                    //         username: interaction.options.getString('username')
-                    //     },
+                    await usernameCollection.insertOne(
+                        {
+                           userID: interaction.user.id,
+                           username: interaction.options.getString('username')
+                        },
 
-                    //     function (err, result) {
-                    //         if (err) console.log(err);
-                    //         console.log(result);
-                    //     }
-                    // );
+                        function (err, result) {
+                            if (err) console.log(err);
+                            console.log(result);
+                        }
+                    );
 
                     await msg.reply('✅ **| Все в порядке! Ты верифицирован.**');
                 } else {
