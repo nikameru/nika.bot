@@ -112,7 +112,7 @@ async function run(client, interaction, db) {
                 imageCompressedEmitter.off('compressed', function () { });
                 fs.unlink(outputImagePath + interaction.user.id + 'droid_screenshot.jpg', function () { });
 
-                if (matchesArray.some(match => text.includes(match)) && text.includes(report.droidUsername)) {
+                if (matchesArray.every(match => text.includes(match)) && text.includes(report.droidUsername)) {
                     report.verdict = 'success';
 
                     await interaction.member.roles.add('1003389088960893058');
