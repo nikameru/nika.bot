@@ -6,8 +6,8 @@ const Emitter = require('events');
 const fs = require('fs');
 const request = require('request');
 
-const matchesArray = ['Imperial Circus Dead Decadence', 'Provided by iBancho'];
-const badMatchesArray = ['Cannot log in', 'not log in', 'Wrong name ot password', 'wrong name', 'empty response'];
+const matchesArray = ['o!d cis community', 'adoviy verif', 'verify urself', 'Beatmap by unclemtng'];
+const badMatchesArray = ['Guest ', 'not log in', 'Wrong name ot password', 'wrong name', 'empty response', 'Played by AEDIVANUNCLEM', ' 2023/02/06 22:58'];
 const colorsDict = { 'success': '#99ec00', 'fail': '#ff4646' };
 
 const accessDeniedEmbed = new MessageEmbed()
