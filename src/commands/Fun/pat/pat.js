@@ -8,7 +8,7 @@ module.exports = {
         const patAvatar = await patMember.user.avatarURL({ format: 'jpg' });
         var patDescription;
 
-        if (patMember == interaction.user) patDescription = `**${interaction.member.displayName} pats themselves!**`;
+        if (patMember == interaction.member) patDescription = `**${interaction.member.displayName} pats themselves!**`;
         else patDescription = `**${interaction.member.displayName} pats ${patMember}!**`;
 
         const gif = await petpetgif(patAvatar);
@@ -17,7 +17,9 @@ module.exports = {
         const patEmbed = new MessageEmbed()
             .setDescription(patDescription)
             .setColor('#fcbef9')
-            .setImage('attachment://pat.gif');
+            .setImage('attachment://pat.gif')
+            .setFooter({ text: 'nika.bot', iconURL: client.user.displayAvatarURL() })
+            .setTimestamp();
 
         interaction.reply({ embeds: [patEmbed], files: [attachmentGif] });
     },

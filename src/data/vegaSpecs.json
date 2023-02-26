@@ -1,0 +1,23 @@
+{
+    "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+    "data": {
+       "url": ""
+    },
+    "mark": {
+        "type": "line",
+        "line": {
+            "color": "deeppink"
+        }
+    },
+    "encoding": {
+        "x": {
+            "field": "date",
+            "type": "temporal"
+        },
+        "y": {
+            "field": "rank",
+            "type": "quantitative",
+            "sort": "descending"
+        }
+    }
+}

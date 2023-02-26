@@ -1,10 +1,10 @@
 const { REST } = require('@discordjs/rest');
 const { Routes } = require('discord-api-types/v9');
-const { token } = require('./config.json');
+const { token } = require('../data/config.json');
 const fs = require('node:fs');
 const rest = new REST({ version: '9' }).setToken(token);
 const commands = [];
-const cid = '638829884256288778';
+const cid = '1071371035380830251';
 const gid = '942861116164411443';
 
 async function commandsDeploy (commands) {
@@ -19,13 +19,13 @@ async function commandsDeploy (commands) {
     }
 };
 
-fs.readdir('./commands', (err, folders) => {
+fs.readdir('../commands', (err, folders) => {
     if (err) console.log(err);
 
     folders.forEach((folder, i) => {
         console.log(folder);
 
-        fs.readdir(`./commands/${folder}`, (err, sfolders) => {
+        fs.readdir(`../commands/${folder}`, (err, sfolders) => {
             if (err) console.log(err);
 
             let sfoldersNum = sfolders.length - 1;
@@ -33,7 +33,7 @@ fs.readdir('./commands', (err, folders) => {
             sfolders.forEach((sfolder, i) => {
                 console.log(sfolder);
 
-                const command = require(`./commands/${folder}/${sfolder}/${sfolder}`);
+                const command = require(`../commands/${folder}/${sfolder}/${sfolder}`);
 
                 if (command.config.name) {
                     commands.push(command.config);

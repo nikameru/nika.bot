@@ -20,12 +20,12 @@ async function run(client, interaction, db) {
     const screenshot = await interaction.options.getAttachment('screenshot').url;
     const channel = await client.channels.fetch(interaction.channelId);
     const logsChannel = await client.channels.fetch('943228726311788584');
-    const usernameCollection = await db.collection('droidUsernames');
+    const usernameCollection = await db.collection('droidVerificatedUsernamesCollection');
     const reportEmbed = new MessageEmbed();
 
     var recognizingProgressCounter = 0;
     var report = {
-        'userID': interaction.user.id,
+        'userId': interaction.user.id,
         'username': interaction.user.tag,
         'droidUsername': interaction.options.getString('username').substring(0, 14),
         'screenshotLink': screenshot,
@@ -38,7 +38,7 @@ async function run(client, interaction, db) {
     const imageCompressedEmitter = new Emitter();
 
     await interaction.deferReply();
-    await usernameCollection.find({ userID: interaction.user.id }).toArray((err, result) => {
+    await usernameCollection.find({ userId: interaction.user.id }).toArray((err, result) => {
         if (err) console.log(err);
 
         if (result.length != 0) {
@@ -119,7 +119,7 @@ async function run(client, interaction, db) {
 
                     await usernameCollection.insertOne(
                         {
-                           userID: interaction.user.id,
+                           userId: interaction.user.id,
                            username: interaction.options.getString('username')
                         },
 
@@ -148,7 +148,7 @@ async function run(client, interaction, db) {
                     .setColor(colorsDict[report.verdict])
                     .setImage(report.screenshotLink)
                     .addFields(
-                        { name: '**User:**', value: `<@!${report.userID}> (*${report.username}*)` },
+                        { name: '**User:**', value: `<@!${report.userId}> (*${report.username}*)` },
                         { name: '**Droid username:**', value: report.droidUsername },
                         { name: '**Recognized text:**', value: `\`${report.recognizedText}\`` },
                         { name: '**Verdict:**', value: `${report.verdict} (*reason: ${report.reason}*)` }
