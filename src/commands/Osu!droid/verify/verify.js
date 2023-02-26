@@ -6,8 +6,8 @@ const Emitter = require('events');
 const fs = require('fs');
 const request = require('request');
 
-const matchesArray = ['Imperial Circus Dead Decadence', 'Provided by iBancho'];
-const badMatchesArray = ['Cannot log in', 'not log in', 'Wrong name ot password', 'wrong name', 'empty response'];
+const matchesArray = ['o!d cis community', 'adoviy verif', 'verify urself', 'Beatmap by unclemtng'];
+const badMatchesArray = ['Guest ', 'not log in', 'Wrong name ot password', 'wrong name', 'empty response', 'Played by AEDIVANUNCLEM', ' 2023/02/06 22:58'];
 const colorsDict = { 'success': '#99ec00', 'fail': '#ff4646' };
 
 const accessDeniedEmbed = new MessageEmbed()
@@ -112,7 +112,7 @@ async function run(client, interaction, db) {
                 imageCompressedEmitter.off('compressed', function () { });
                 fs.unlink(outputImagePath + interaction.user.id + 'droid_screenshot.jpg', function () { });
 
-                if (matchesArray.some(match => text.includes(match)) && text.includes(report.droidUsername)) {
+                if (matchesArray.every(match => text.includes(match)) && text.includes(report.droidUsername)) {
                     report.verdict = 'success';
 
                     await interaction.member.roles.add('1003389088960893058');

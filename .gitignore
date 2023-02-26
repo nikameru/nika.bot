@@ -7,3 +7,8 @@ res
 media
 log
 package.json
+[start].bat
+package.json
+commands/Owner Commands/dropDatabase/dropDatabase.js
+\[start\].bat
+*.json
