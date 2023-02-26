@@ -17,7 +17,8 @@
         "y": {
             "field": "rank",
             "type": "quantitative",
-            "sort": "descending"
+            "sort": "descending",
+            "scale": { "domain": [] }
         }
     }
 }

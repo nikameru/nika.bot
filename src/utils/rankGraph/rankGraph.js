@@ -3,6 +3,16 @@ const vl = require('vega-lite');
 const fs = require('fs');
 const http = require('http');
 
+function getGraphScaleByRank (list) {
+    const ranksArray = list.map(item => item.rank);
+
+    ranksArray.sort(function (a, b) {
+        return a - b;
+    });
+    
+    return [ranksArray[0] - 50, ranksArray.pop() + 50];
+}
+
 function renderOsuDroidRankGraph(userId, droidId, droidGraphRenderedEmitter) {
     const requestOptions = {
         host: 'beta.acivev.de',
@@ -24,6 +34,7 @@ function renderOsuDroidRankGraph(userId, droidId, droidGraphRenderedEmitter) {
 
             const chartSpec = require('../../data/vegaSpecs.json');
             chartSpec.data.values = timelineJson;
+            chartSpec.encoding.y.scale.domain = getGraphScaleByRank(timelineJson);
 
             const vegaSpec = vl.compile(chartSpec).spec;
 
