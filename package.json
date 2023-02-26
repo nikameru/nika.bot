@@ -4,7 +4,7 @@
   "description": "v2",
   "main": "index.js",
   "scripts": {
-    "test": "node index.js"
+    "test": "node ./src/index.js"
   },
   "author": "nikameru",
   "license": "ISC",

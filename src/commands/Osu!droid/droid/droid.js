@@ -26,10 +26,6 @@ const uidNotSpecifiedEmbed = new MessageEmbed()
 const droidAccountBindedEmbed = new MessageEmbed()
     .setColor('#99ec00');
 
-const droidProfileEmbed = new MessageEmbed()
-    .setTitle('👤 | Profile')
-    .setColor('#ff80ff');
-
 const droidProfileRow = new MessageActionRow()
     .addComponents(
         new MessageButton()
@@ -39,7 +35,7 @@ const droidProfileRow = new MessageActionRow()
             .setEmoji('📈')
     );
 
-function setDroidProfileStats(options, client, interaction) {
+function setDroidProfileStats(options, client, droidProfileEmbed) {
     const req = http.get(options, function (res) {
         console.log('~ STATUS: ' + res.statusCode);
 
@@ -55,8 +51,8 @@ function setDroidProfileStats(options, client, interaction) {
     
             droidProfileEmbed.setTitle(`osu!droid profile`)
                 .setDescription(
-                    `**🏅 | Rank: #${statsJson.globalRanking} (:flag_${statsJson.region.toLowerCase()}: #${statsJson.countryRanking})**\n
-                    **👌 | Accuracy: ${+(statsJson.overallAccuracy / statsJson.overallPlaycount / 1000).toPrecision(4)}%**`)
+                    `**🏅 | Rank: #${statsJson.globalRanking} (:flag_${statsJson.region.toLowerCase()}: #${statsJson.countryRanking})**` +
+                    `\n\n**👌 | Accuracy: ${+(statsJson.overallAccuracy / statsJson.overallPlaycount / 1000).toPrecision(4)}%**`)
                 .setThumbnail('https://beta.acivev.de/api2/avatar/512/' + statsJson.id)
                 .setFooter({ text: 'nika.bot', iconURL: client.user.displayAvatarURL() })
                 .setTimestamp();
@@ -74,6 +70,11 @@ async function run(client, interaction, db) {
     const subcommandName = await interaction.options.getSubcommand();
     const droidUsersCollection = await db.collection('droidUsersCollection');
     const droidUser = await droidUsersCollection.findOne({ userId: interaction.user.id });
+
+    const droidProfileEmbed = new MessageEmbed()
+        .setTitle('👤 | Profile')
+        .setColor('#ff80ff');
+
     var droidId;
 
     if (droidUser == null && interaction.options.getInteger('uid') == null) {
@@ -124,7 +125,7 @@ async function run(client, interaction, db) {
     } else if (subcommandName == 'profile') {
         requestOptions.path = '/api/profile/stats/' + droidId;
 
-        setDroidProfileStats(requestOptions, client, interaction);
+        setDroidProfileStats(requestOptions, client, droidProfileEmbed);
 
         requestDataObtainedEmitter.once('requestDataObtained', function () {
             interaction.reply({ embeds: [droidProfileEmbed], components: [droidProfileRow] });
@@ -133,20 +134,22 @@ async function run(client, interaction, db) {
 
             const buttonCollector = interaction.channel.createMessageComponentCollector({ interactionFilter, time: 15000 });
 
-            buttonCollector.on('collect', i => {
+            buttonCollector.once('collect', i => {
                 if (i.user.id == interaction.user.id) {
                     renderOsuDroidRankGraph(interaction.user.id, droidId, droidGraphRenderedEmitter);
 
                     droidGraphRenderedEmitter.once('graphRendered', function () {
-                        const attachmentGraph = new MessageAttachment(
-                            `../media/rank_graphs/${interaction.user.id}graph.png`, 'graph.png'
-                        );
+                        try {
+                            const attachmentGraph = new MessageAttachment(
+                                `../media/rank_graphs/graph.png`, 'graph.png'
+                            );
 
-                        droidProfileEmbed.setImage('attachment://graph.png');
+                            droidProfileEmbed.setImage('attachment://graph.png');
 
-                        i.update({ embeds: [droidProfileEmbed], files: [attachmentGraph] });
-
-                        fs.unlink(`../media/rank_graphs/${interaction.user.id}graph.png`, function () {});
+                            i.update({ embeds: [droidProfileEmbed], files: [attachmentGraph] });
+                        } catch (err) {
+                            console.log(err);
+                        }
                     });
                 }
             });

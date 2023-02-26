@@ -33,16 +33,19 @@ function renderOsuDroidRankGraph(userId, droidId, droidGraphRenderedEmitter) {
 
             view.toCanvas()
                 .then(function (canvas) {
-                    const file = fs.createWriteStream(`../media/rank_graphs/${userId}graph.png`);
-                    const stream = canvas.createPNGStream();
-
-                    stream.pipe(file);
+                    try {
+                        const file = fs.createWriteStream(`../media/rank_graphs/graph.png`);
+                        const stream = canvas.createPNGStream();
+                        stream.pipe(file);
+                    } catch (err) {
+                        console.log(err);
+                    }
                 })
                 .catch(function (err) {
                     console.log('~ error while rendering PNG graph:');
                     console.error(err);
                 });
-
+            
             droidGraphRenderedEmitter.emit('graphRendered');
         })
     });
