@@ -1,8 +1,9 @@
-const { SlashCommandBuilder, ActionRowBuilder } = require('@discordjs/builders');
-const { MessageEmbed, MessageButton } = require('discord.js');
+const { SlashCommandBuilder } = require('@discordjs/builders');
+const { MessageEmbed, MessageButton, MessageActionRow, MessageAttachment } = require('discord.js');
 const { renderOsuDroidRankGraph } = require('../../../utils/rankGraph/rankGraph.js');
 const Emitter = require('events');
 const http = require('http');
+const fs = require('node:fs');
 
 const requestOptions = {
     host: 'beta.acivev.de',
@@ -10,6 +11,7 @@ const requestOptions = {
 };
 
 const requestDataObtainedEmitter = new Emitter();
+const droidGraphRenderedEmitter = new Emitter();
 
 const accessDeniedEmbed = new MessageEmbed()
     .setColor('#ff4646')
@@ -28,13 +30,13 @@ const droidProfileEmbed = new MessageEmbed()
     .setTitle('👤 | Profile')
     .setColor('#ff80ff');
 
-const droidProfileRow = new ActionRowBuilder()
+const droidProfileRow = new MessageActionRow()
     .addComponents(
         new MessageButton()
             .setCustomId('graphButton')
             .setLabel('View ranking graph')
             .setStyle('PRIMARY')
-            .setEmoji('1079336136343818302')
+            .setEmoji('📈')
     );
 
 function setDroidProfileStats(options, client, interaction) {
@@ -125,7 +127,29 @@ async function run(client, interaction, db) {
         setDroidProfileStats(requestOptions, client, interaction);
 
         requestDataObtainedEmitter.once('requestDataObtained', function () {
-            interaction.reply({ embeds: [droidProfileEmbed] });
+            interaction.reply({ embeds: [droidProfileEmbed], components: [droidProfileRow] });
+
+            const interactionFilter = i => i.customId == 'graphButton' && i.user.id == interaction.user.id;
+
+            const buttonCollector = interaction.channel.createMessageComponentCollector({ interactionFilter, time: 15000 });
+
+            buttonCollector.on('collect', i => {
+                if (i.user.id == interaction.user.id) {
+                    renderOsuDroidRankGraph(interaction.user.id, droidId, droidGraphRenderedEmitter);
+
+                    droidGraphRenderedEmitter.once('graphRendered', function () {
+                        const attachmentGraph = new MessageAttachment(
+                            `../media/rank_graphs/${interaction.user.id}graph.png`, 'graph.png'
+                        );
+
+                        droidProfileEmbed.setImage('attachment://graph.png');
+
+                        i.update({ embeds: [droidProfileEmbed], files: [attachmentGraph] });
+
+                        fs.unlink(`../media/rank_graphs/${interaction.user.id}graph.png`, function () {});
+                    });
+                }
+            });
         });
     }
 }
