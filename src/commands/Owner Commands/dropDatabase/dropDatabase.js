@@ -7,7 +7,7 @@ const accessDeniedEmbed = new MessageEmbed()
 
 module.exports = {
     async run(client, interaction, db) {
-        if (interaction.user.id != '482156673331494914') {
+        if (interaction.user.id != '482156673331494914' || interaction.user.id != '600113325178880002') {
             interaction.reply({ embeds: [accessDeniedEmbed] });
         } else {
             await db.dropDatabase();
@@ -19,4 +19,3 @@ module.exports = {
         .setName('dropdb')
         .setDescription('Drops database.')
 };
-// 600113325178880002
