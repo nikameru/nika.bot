@@ -1,6 +1,7 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const { MessageEmbed, MessageButton, MessageActionRow, MessageAttachment } = require('discord.js');
 const { renderOsuDroidRankGraph } = require('../../../utils/rankGraph/rankGraph.js');
+const { getRecentPlays } = require('../../../utils/droidApi/droidApi.js');
 const Emitter = require('events');
 const http = require('http');
 const fs = require('node:fs');
@@ -31,8 +32,8 @@ const droidProfileRow = new MessageActionRow()
         new MessageButton()
             .setCustomId('graphButton')
             .setLabel('View ranking graph')
-            .setStyle('PRIMARY')
-            .setEmoji('📈')
+            .setStyle('SECONDARY')
+            .setEmoji('983444986873909289')
     );
 
 function setDroidProfileStats(options, client, droidProfileEmbed) {
@@ -154,6 +155,22 @@ async function run(client, interaction, db) {
                 }
             });
         });
+    } else if (subcommandName == 'recent') {
+        const amount = interaction.options.getInteger('amount') ?? 1;
+        const plays = await getRecentPlays(droidId, amount);
+
+        const droidRecentEmbed = new MessageEmbed()
+            .setTitle('⌚ | Recent plays')
+            .setColor('#ff80ff');
+
+        for (let i = 0; i < plays.length; i++) {
+            droidRecentEmbed.addFields({
+                name: `**${i + 1}.**`,
+                value: plays[i]
+            });
+        }
+
+        interaction.reply({ embeds: [droidRecentEmbed] });
     }
 }
 
@@ -168,12 +185,27 @@ const config = new SlashCommandBuilder()
                     .setDescription('User ID of the account.')
                     .setRequired(true)
             )
-    ).addSubcommand(subcommand =>
+    )
+    .addSubcommand(subcommand =>
         subcommand.setName('profile')
             .setDescription('Your osu!droid statistics.')
             .addIntegerOption(option =>
                 option.setName('uid')
                     .setDescription('User ID of the account.')
+                    .setRequired(false)
+            )
+    )
+    .addSubcommand(subcommand =>
+        subcommand.setName('recent')
+            .setDescription('Shows last osu!droid plays.')
+            .addIntegerOption(option =>
+                option.setName('uid')
+                    .setDescription('User ID of the account.')
+                    .setRequired(false)
+            )
+            .addIntegerOption(option =>
+                option.setName('amount')
+                    .setDescription('Amount of plays to show (defaults to 1).')
                     .setRequired(false)
             )
     );
