@@ -14,7 +14,18 @@ const client = new Client({
     ]
 });
 
-const mongoClient = new MongoClient("mongodb://127.0.0.1:27017/");
+const uri = `mongodb+srv://${process.env.MONGODB_PASSWORD}@cluster0.irhpv.mongodb.net/?retryWrites=true&w=majority`;
+const mongoClient = new MongoClient(uri, {
+    serverApi: {
+        version: ServerApiVersion.v1,
+        strict: true,
+        deprecationErrors: true,
+    }
+});
+
+
+//const mongoClient = new MongoClient("mongodb://127.0.0.1:27017/");
+
 const db = mongoClient.db('nikabotdb');
 
 async function botStart() {
