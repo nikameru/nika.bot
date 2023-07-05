@@ -166,7 +166,7 @@ async function run(client, interaction, db) {
         for (let i = 0; i < plays.length; i++) {
             droidRecentEmbed.addFields({
                 name: `**${i + 1}.**`,
-                value: plays[i]
+                value: `${plays[i].title} ${plays[i].accuracy}`
             });
         }
 
