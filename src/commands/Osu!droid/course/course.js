@@ -1,7 +1,6 @@
 const { MessageEmbed } = require('discord.js');
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const { getRecentPlays } = require('../../../utils/droidApi/droidApi.js');
-const courses = require('../../../data/skillCourses.json');
 
 const uidNotFoundEmbed = new MessageEmbed()
     .setColor('#ff4646')
@@ -26,6 +25,7 @@ const courseClaimedEmbed = new MessageEmbed()
     .setTitle('📖 | Skill Course system')
 
 async function run(client, interaction, db) {
+    const courses = require('../../../data/skillCourses.json');
     const subcommandName = await interaction.options.getSubcommand();
     const courseOption = await interaction.options.getString('name');
     const desiredCourse = courses.courses[courseOption];
@@ -40,7 +40,11 @@ async function run(client, interaction, db) {
         return interaction.reply({ embeds: [uidNotFoundEmbed] });
     }
 
-    const recentPlay = await getRecentPlays(droidId, 1);
+    try {
+        const recentPlay = await getRecentPlays(droidId, 1);
+    } catch {
+        return interaction.reply({ content: 'Error.', ephemeral: true });
+    }
 
     if (recentPlay[0].title != desiredCourse.title) {
         return interaction.reply({ embeds: [wrongMapEmbed] });

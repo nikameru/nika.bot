@@ -1,5 +1,7 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const { MessageEmbed, MessageButton, MessageActionRow, MessageAttachment } = require('discord.js');
+const { Accuracy, MapInfo, MapStats } = require('@rian8337/osu-base');
+const { OsuPerformanceCalculator, OsuDifficultyCalculator } = require('@rian8337/osu-difficulty-calculator');
 const { renderOsuDroidRankGraph } = require('../../../utils/rankGraph/rankGraph.js');
 const { getRecentPlays } = require('../../../utils/droidApi/droidApi.js');
 const Emitter = require('events');
@@ -158,6 +160,8 @@ async function run(client, interaction, db) {
     } else if (subcommandName == 'recent') {
         const amount = interaction.options.getInteger('amount') ?? 1;
         const plays = await getRecentPlays(droidId, amount);
+
+        //const beatmapInfo = await MapInfo.getInformation(901854);
 
         const droidRecentEmbed = new MessageEmbed()
             .setTitle('⌚ | Recent plays')
