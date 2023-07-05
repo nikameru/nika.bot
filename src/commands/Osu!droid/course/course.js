@@ -72,7 +72,11 @@ const config = new SlashCommandBuilder()
                     .setDescription('Name of the Course.')
                     .setRequired(true)
                     .addChoices(
-                        { name: 'Aim Death Skill Course', value: 'aim' }
+                        { name: 'Aim Death Skill Course', value: 'aim' },
+                        { name: 'Aim Death Skill Course+', value: 'aimplus' },
+                        { name: 'Aim Easy Skill Course', value: 'eaim' },
+                        { name: 'Aim Easy Skill Course+', value: 'eaimplus' }
+                        
                     )
             )
     );
