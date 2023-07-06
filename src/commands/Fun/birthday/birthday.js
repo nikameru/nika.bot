@@ -8,7 +8,7 @@ const errorEmbed = new MessageEmbed()
 
 module.exports = {
     run(client, interaction, db) {
-        const collection = db.collection('birthdays');
+        /*const collection = db.collection('birthdays');
 
         const birthdayData = { 
             userID: interaction.member.user.id, 
@@ -51,7 +51,7 @@ module.exports = {
                     interaction.reply({ embeds: [errorEmbed] });
                 }
             }
-        );
+        );*/
     },
     config: new SlashCommandBuilder()
         .setName('birthday')
