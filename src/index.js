@@ -2,6 +2,7 @@ const { Client, Intents, Collection, MessageEmbed } = require('discord.js');
 const { MongoClient, ServerApiVersion } = require('mongodb');
 const dotenv = require('dotenv');
 const fs = require('node:fs');
+const os = require('node:os');
 
 dotenv.config();
 
@@ -51,6 +52,17 @@ fs.readdir('./commands', (err, folders) => {
             });
         });
     });
+});
+
+client.once('ready', () => {
+    setInterval(() => {
+        const memused = Math.round((os.totalmem() - os.freemem()) / os.totalmem() * 100);
+        const platform = os.platform();
+
+        const activityString = `mem${memused} [${platform}]`;
+
+        client.user.setActivity(activityString, { type: 'WATCHING' });
+    }, 10000);
 });
 
 client.on('interactionCreate', async (interaction) => {

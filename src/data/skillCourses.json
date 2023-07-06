@@ -1,18 +1,35 @@
 {
     "courses": 
     {
-        "aim": 
+        "daim": 
         {
             "name": "Aim Death Skill Course",
-            "title": "o!d CIS Skill Course Series - Aim Death Skill Course (unclemtng) [BLOOD FOR THE BLOOD GOD]",
+            "title": "o!d CIS Skill Course Series - Aim Skill Course (unclemtng) [(DEATH)BLOOD FOR THE BLOOD GOD]",
             "condition": 87,
             "rewardRoleId": "1125871072655462430"
         },
 
-        "test":
+        "daimplus":
         {
-            "title": "",
-            "condition": []
+            "name": "Aim Death Skill Course+",
+            "title": "o!d CIS Skill Course Series - Aim Skill Course (unclemtng) [(DEATH+)BLOOD FOR THE BLOOD GOD+]",
+            "condition": 84,
+            "rewardRoleId": "1126242813479239770"
+        },
+
+        "eaim":
+        {
+            "name": "Aim Easy Skill Course",
+            "title": "o!d CIS Skill Course Series - Aim Skill Course (unclemtng) [(EASY)SKULLS TO THE THRONE OF SKULLS]",
+            "condition": 95,
+            "rewardRoleId": "1126243231378710649"
+        },
+        "eaimplus":
+        {
+            "name": "Aim Easy Skill Course+",
+            "title": "o!d CIS Skill Course Series - Aim Skill Course (unclemtng) [(EASY+)SKULLS TO THE THRONE OF SKULLS+]",
+            "condition": 93,
+            "rewardRoleId": "1126242990143311912"
         }
     }
 }
