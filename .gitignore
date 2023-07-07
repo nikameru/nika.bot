@@ -11,3 +11,6 @@ package.json
 package.json
 commands/Owner Commands/dropDatabase/dropDatabase.js
 \[start\].bat
+src/deploy.js
+src/utils/deploy.js
+src/utils/deploy.js
