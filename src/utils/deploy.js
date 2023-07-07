@@ -4,7 +4,7 @@ const { token } = require('../data/config.json');
 const fs = require('node:fs');
 const rest = new REST({ version: '9' }).setToken(token);
 const commands = [];
-const cid = '638829884256288778';
+const cid = '1126872447359144056';
 const gid = '942861116164411443';
 
 async function commandsDeploy (commands) {
