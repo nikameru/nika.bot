@@ -45,12 +45,12 @@ fs.readdir('./commands', (err, folders) => {
 
 client.once('ready', () => {
     setInterval(() => {
-        const memused = Math.round((os.totalmem() - os.freemem()) / os.totalmem() * 100);
+        const memUsed = Math.round((os.totalmem() - os.freemem()) / os.totalmem() * 100);
         const platform = os.platform();
 
-        const activityString = `mem${memused} [${platform}]`;
+        const status = `ram${memUsed} [${platform}]`;
 
-        client.user.setActivity(activityString, { type: 'WATCHING' });
+        client.user.setStatus(status);
     }, 10000);
 });
 

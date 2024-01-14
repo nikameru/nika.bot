@@ -45,7 +45,7 @@ async function run(client, interaction, db) {
     for (play of recentPlays) {
         if (play.title != desiredCourse.title) {
             continue;
-        } else if (parseFloat(play.accuracy).toFixed(0) < desiredCourse.condition || play.mods != 'No Mod') {
+        } else if (parseFloat(play.accuracy).toFixed(0) < desiredCourse.condition || play.mods != 'No Mod' || play.speedMultiplier) {
             continue;
         } else {
             await interaction.member.roles.add(desiredCourse.rewardRoleId);

@@ -1,6 +1,11 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
-const { MessageEmbed, MessageButton, MessageActionRow, MessageAttachment } = require('discord.js');
-const { Accuracy, MapInfo, MapStats } = require('@rian8337/osu-base');
+const { 
+    MessageEmbed,
+    MessageButton, 
+    MessageActionRow, 
+    MessageAttachment 
+} = require('discord.js');
+const { Accuracy, MapInfo, MapStats, ModHardRock } = require('@rian8337/osu-base');
 const { 
     DroidDifficultyCalculator,
     DroidPerformanceCalculator,
@@ -13,7 +18,6 @@ const Emitter = require('events');
 const http = require('http');
 const { stripIndents } = require('common-tags');
 const dayjs = require('dayjs');
-const { some } = require('vega-lite');
 
 const requestOptions = {
     host: 'beta.acivev.de',
@@ -203,10 +207,13 @@ async function run(client, interaction, db) {
             nobjects: beatmapData.objects
         });
 
+        const speedMultiplier = play.speedMultiplier ?? '1.00';
+
         const stats = new MapStats({
+            mods: [ ModHardRock ],//play.mods.split(', '),
             ar: beatmapData.ar,
             isForceAR: false,
-            speedMultiplier: 1
+            speedMultiplier: parseFloat(speedMultiplier)
         });
 
         const pp = new OsuPerformanceCalculator(osuRating.attributes).calculate({
@@ -229,16 +236,18 @@ async function run(client, interaction, db) {
             .setColor('#ff80ff')
             .setDescription(stripIndents`
                 [${rankingEmoji}] | ${play.score} | __**${dpp.total.toFixed(2)}dpp** - ${droidRating.total.toFixed(2)}__* (${pp.total.toFixed(2)}pp - ${osuRating.total.toFixed(2)}*)\n
-                ${play.mods} | ${play.accuracy}% | ${play.combo}x | ${play.misscount} ❌ | <t:${timestamp}:R>  
+                ${play.mods} (x${speedMultiplier}) | ${play.accuracy}% | ${play.combo}x | ${play.misscount} ❌ | <t:${timestamp}:R>  
             `)
             .setThumbnail(`https://b.ppy.sh/thumb/${beatmapData.beatmapsetID}l.jpg`)
             .setFooter({ text: 'from nikameru with 💜', iconURL: client.user.displayAvatarURL() })
             .setTimestamp();
 
+        console.log(speedMultiplier, play.mods.split(', '))
+        console.log(droidRating.total)
+
         interaction.reply({ content: `✅ **| Recent play for __${droidId}__:**`, embeds: [droidRecentEmbed] });
     }
 }
-
 
 const config = new SlashCommandBuilder()
     .setName('droid')
