@@ -1,4 +1,6 @@
 node_modules
+tournament
+read_collection
 .env
 config.json
 package-lock.json

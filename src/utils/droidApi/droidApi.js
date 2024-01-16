@@ -120,7 +120,7 @@ async function disconnectFromRoom() {
 async function changeRoomBeatmap(hash) {
     const beatmapInfo = await getBeatmapInfoByHash(hash);
 
-    if (!beatmapInfo) return console.log('~ no beatmap info found!');
+    if (!beatmapInfo[0]) return console.log('~ no beatmap info found!');
 
     const roomBeatmapInfo = {
         'md5': hash,
