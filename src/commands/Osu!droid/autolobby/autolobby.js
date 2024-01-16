@@ -125,7 +125,7 @@ async function run(client, interaction) {
             socket.on('playerLeft', (uid) => {
                 console.log(`~ player left (uid: ${uid})`);
 
-                playerStatuses.delete(data.toString());
+                playerStatuses.delete(uid);
             });
 
             socket.on('playerStatusChanged', (uid, status) => {
