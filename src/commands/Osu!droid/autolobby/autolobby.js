@@ -4,7 +4,7 @@ const EventEmitter = require('node:events');
 const path = require('path');
 
 const { SlashCommandBuilder } = require('@discordjs/builders');
-const { MessageEmbed, MessageAttachment, Collection } = require('discord.js');
+const { MessageEmbed } = require('discord.js');
 const { 
     createRoom,
     connectToRoom,
@@ -22,19 +22,15 @@ const somethingWentWrongEmbed = new MessageEmbed()
 const createdRoomEmbed = new MessageEmbed()
     .setColor('#99ec00');
 
-const roomInfoEmbed = new MessageEmbed()
-    .setColor('#ff80ff');
+/*const roomInfoEmbed = new MessageEmbed()
+    .setColor('#ff80ff');*/
 
 const connectedToSocketEmitter = new EventEmitter();
 
-const playerStatuses = ['Not ready', 'Ready', 'Missing beatmap', 'Playing'];
-const roomStatuses = ['Idle', 'Changing beatmap', 'Playing'];
-
-//var roomStatusDescription = '';
-//var roomMapDescription = '';
 var mapCollections = [];
 
 // Scanning maps library
+
 const parsedCollections = fs.readdirSync(path.resolve(__dirname, '../../../data/maps'));
 
 if (!parsedCollections) return;
@@ -48,11 +44,9 @@ for (let collection of parsedCollections) {
     }
 }
 
-console.log(mapCollections);
-
 function isEveryoneReady(players) {
-    for (let status of players.values()) {
-        if (status != 1) {
+    for (let player of players.values()) {
+        if (player.status != 1) {
             return false;
         }
     }
@@ -66,7 +60,7 @@ function pickRandomMapHash(archetype) {
     return sortedMaps.hashes[Math.floor(Math.random() * (sortedMaps.size - 1))];
 }
 
-function updateRoomInfoEmbed(roomStatus, map, playerAmount) {
+/*function updateRoomInfoEmbed(roomStatus, map, playerAmount) {
     if (roomStatus) roomStatusDescription = `- Room status: ${roomStatuses[roomStatus]} (${playerAmount}/8 players)`;
     if (map) roomMapDescription = `- Map info: ${map.artist} - ${map.title} [${map.version}] by ${map.artist}`;
 
@@ -75,15 +69,17 @@ function updateRoomInfoEmbed(roomStatus, map, playerAmount) {
         .setTimestamp();
 
     return roomInfoEmbed;
-}
+}*/
 
 async function run(client, interaction) {
+    const logsChannel = await client.channels.fetch('943228726311788584');
     const subcommandName = await interaction.options.getSubcommand();
 
     if (subcommandName == 'create') {
         await interaction.deferReply();
 
-        const archetypeOption = await interaction.options.getString('archetype') || 'Jumps [Ultimate Pack]';
+        var archetypeOption = await interaction.options.getString('archetype') || 'Jumps [Ultimate Pack]';
+
         if (!mapCollections.includes(archetypeOption)) { 
             return interaction.editReply({ content: 'Specified map archetype not found!' });
         }
@@ -94,51 +90,56 @@ async function run(client, interaction) {
         await connectToRoom(roomInfo.id, connectedToSocketEmitter);
 
         connectedToSocketEmitter.once('socketConnection', async (socket) => {
-            roomInfoEmbed.setFooter({ text: 'nika.bot', iconURL: client.user.displayAvatarURL() });
-
             createdRoomEmbed.setDescription(`✅ **| Created autolobby __nika.bot\'s autolobby__ with ${archetypeOption} maps.**`);
             await interaction.editReply({ embeds: [createdRoomEmbed] });
 
             // Force setting initial map
+
             const initialMap = await pickRandomMapHash(archetypeOption);
             await changeRoomBeatmap(initialMap);
 
             await wait(2000);
 
-            // List of player statuses - uid : status (ready or not)
-            const playerStatuses = new Map();
+            // List of players in the room - { uid: [username, status] }
+
+            const players = new Map();
+
             // For handling /skip command voting
+
             const playersSkipped = new Set();
 
             // Self-bot is ready by default
-            playerStatuses.set('454815', 1);
+
+            players.set('454815', { username: 'nika_bot', status: 1 });
             setPlayerStatus(1);
 
             var roomStatus = 0;
 
+            // Event listeners
+
             socket.on('playerJoined', (data) => {
                 console.log(`~ player joined: ${data.username} (uid: ${data.uid})`);
 
-                playerStatuses.set(data.uid, data.status);
+                messageRoomChat(`${data.username}, welcome to autolobby! Type /help to see available commands`);
+
+                players.set(data.uid, { username: data.username, status: data.status });
             });
 
             socket.on('playerLeft', (uid) => {
                 console.log(`~ player left (uid: ${uid})`);
 
-                playerStatuses.delete(uid);
+                players.delete(uid);
+                playersSkipped.delete(uid);
             });
 
             socket.on('playerStatusChanged', (uid, status) => {
                 console.log(`~ player status changed (uid: ${uid}, status: ${status})`);
 
-                playerStatuses.set(uid, status);
-
-                /*interaction.channel.send({
-                    content: `Statuses: ${JSON.stringify(playerStatuses, (k, v) => (v instanceof Map ? [...v] : v))}`
-                });*/
+                players.get(uid).status = status;
 
                 // If room has more than 2 players (including bot) and everyone is ready, start match
-                if (playerStatuses.size >= 2 && isEveryoneReady(playerStatuses)) {
+
+                if (players.size >= 2 && isEveryoneReady(players)) {
                     console.log('~ everyone is ready - starting match in 5s');
                     messageRoomChat('Starting match in 5 seconds...');
 
@@ -150,8 +151,17 @@ async function run(client, interaction) {
             });
 
             socket.on('chatMessage', (uid, message) => {
-                interaction.channel.send(`~ chat: ${uid} - ${message}`);
+                logsChannel.send(`~ chat: ${players.get(uid).username} (uid: ${uid}) - ${message}`);
 
+                // Not allowing the server to kick the bot in case nobody plays in the room
+
+                if (!uid && message.includes('host will be kicked for inactivity')) {
+                    setPlayerStatus(0);
+                    setPlayerStatus(1);
+                }
+
+                // Command handling
+    
                 if (!message.startsWith('/')) return;
 
                 const roomCommandArgs = message.slice(1).split(' ');
@@ -161,16 +171,25 @@ async function run(client, interaction) {
 
                 switch (roomCommandName) {
                     case 'help':
-                        messageRoomChat('/help - Sends a list of bot\'s commands');
-                        messageRoomChat('/skip - Skip current beatmap and pick another one');
+                    case 'h':
+                        messageRoomChat('/help - Sends a list of bot\'s commands (alias: /h)');
+                        messageRoomChat('/type [type] - Change picked beatmaps type (alias: /t)');
+                        messageRoomChat('/skip - Start a vote for skipping current beatmap (alias: /s)');
+                        messageRoomChat('/credits - Information about the bot (alias: /c)');
                         break;
-                    case 'type' || 'mt':
-                        if (1) {
+                    case 'type':
+                    case 't':
+                        let type = roomCommandArgs.length > 1 ? roomCommandArgs.join(' ') : roomCommandArgs[0];
 
+                        if (!mapCollections.includes(type)) {
+                            messageRoomChat(`No type ${type} found! Available types: ${mapCollections.join(', ')}`);
                         } else {
-                            messageRoomChat();
+                            archetypeOption = type;
+                            messageRoomChat(`Changed picked maps type to ${type}`);
                         }
+                        break;
                     case 'skip':
+                    case 's':
                         if (playersSkipped.has(uid)) return messageRoomChat('You\'ve already voted!');
 
                         playersSkipped.add(uid);
@@ -178,22 +197,30 @@ async function run(client, interaction) {
 
                         if (playersSkipped.size == 0) {
                             messageRoomChat(
-                                `Started beatmap skip voting (1/${playerStatuses.size - 1} voted, ` +
-                                `${Math.ceil(0.5 * (playerStatuses.size - 1))} required)`
+                                `Started beatmap skip voting (1/${players.size - 1} voted, ` +
+                                `${Math.ceil(0.5 * (players.size - 1))} required)`
                             );
                         } else {
                             messageRoomChat(
-                                `${playersSkipped.size}/${playerStatuses.size - 1} voted ` +
-                                `(${Math.ceil(0.5 * (playerStatuses.size - 1))} required)`
+                                `${playersSkipped.size}/${players.size - 1} voted ` +
+                                `(${Math.ceil(0.5 * (players.size - 1))} required)`
                             );
                         }
 
-                        if (playersSkipped.size / (playerStatuses.size - 1) > 0.5) {
-                            //playersSkipped.clear();
+                        if (playersSkipped.size / (players.size - 1) > 0.5) {
+                            // Not clearing playersSkipped because that is done when beatmap is changed
 
                             changeRoomBeatmap(pickRandomMapHash(archetypeOption));
                             messageRoomChat('Skipped the beatmap');
                         }
+                        break;
+                    case 'credits':
+                    case 'c':
+                        messageRoomChat(
+                            'This bot is made for autopicking beatmaps ' +
+                            'in osu!droid multiplayer based on the chosen type'
+                        );
+                        messageRoomChat('Credits: development of the bot - nikameru, map library (collections) - unclem');
                         break;
                     default:
                         messageRoomChat(`No command ${roomCommandName} found! See /help for available commands.`);
@@ -205,19 +232,21 @@ async function run(client, interaction) {
                 console.log(map);
             
                 // Always cleaning previous skip voting results
+
                 playersSkipped.clear();
 
                 messageRoomChat(`Changed beatmap to ${map.artist} - ${map.title} [${map.version}]`);
-
-                //setPlayerStatus(1);
             });
 
             socket.on('roomStatusChanged', (status) => {
                 console.log(`~ room status changed: ${roomStatus} -> ${status}`);
-                //interaction.editReply({ embeds: [updateRoomInfoEmbed(status, null, playerStatuses.size)] });
-
+        
                 // Ensuring that status has *changed* to 0 to avoid looped beatmap changing
+
                 if (status == 0) {
+                    // New room status means players have to press ready again
+                    // Because of that bot status is changed only at this point
+
                     setPlayerStatus(1);
 
                     if (status != roomStatus) {
