@@ -72,7 +72,7 @@ function pickRandomMapHash(archetype) {
 }*/
 
 async function run(client, interaction) {
-    const logsChannel = await client.channels.fetch('943228726311788584');
+    const logsChannel = await client.channels.fetch('943228757387407400');
     const subcommandName = await interaction.options.getSubcommand();
 
     if (subcommandName == 'create') {
