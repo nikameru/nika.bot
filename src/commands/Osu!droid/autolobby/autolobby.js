@@ -151,7 +151,9 @@ async function run(client, interaction) {
             });
 
             socket.on('chatMessage', (uid, message) => {
-                logsChannel.send(`~ chat: ${players.get(uid).username} (uid: ${uid}) - ${message}`);
+                logsChannel.send(
+                    `~ chat: ${players.get(uid) ? players.get(uid).username : 'SYSTEM'} (uid: ${uid}) - ${message}`
+                );
 
                 // Not allowing the server to kick the bot in case nobody plays in the room
 
