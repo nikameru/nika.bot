@@ -159,6 +159,11 @@ function messageRoomChat(message) {
     console.log(`~ sent message: ${message}`);
 }
 
+function setRoomFreeMods(value) {
+    socket.emit('roomGameplaySettingsChanged', { 'isFreeMod': value });
+    console.log(`~ set room free mods to ${value}`);
+}
+
 async function getRecentPlays(uid, index, amount) {
     const plays = [];
     const endpoint = droidUrl + profilePath + uid.toString();
@@ -264,6 +269,7 @@ module.exports = {
     setPlayerStatus,
     roomMatchPlay,
     messageRoomChat,
+    setRoomFreeMods,
     getRecentPlays,
     getProfileDPP,
     getBeatmapInfoByHash

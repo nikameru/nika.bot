@@ -12,7 +12,8 @@ const {
     setPlayerStatus,
     roomMatchPlay,
     changeRoomBeatmap,
-    messageRoomChat
+    messageRoomChat,
+    setRoomFreeMods
 } = require('../../../utils/droidApi/droidApi.js');
 
 const somethingWentWrongEmbed = new MessageEmbed()
@@ -92,6 +93,10 @@ async function run(client, interaction) {
         connectedToSocketEmitter.once('socketConnection', async (socket) => {
             createdRoomEmbed.setDescription(`✅ **| Created autolobby __nika.bot\'s autolobby__ with ${archetypeOption} maps.**`);
             await interaction.editReply({ embeds: [createdRoomEmbed] });
+
+            // Free mods setting is true by default
+
+            setRoomFreeMods(true);
 
             // Force setting initial map
 
