@@ -209,7 +209,7 @@ async function run(client, interaction) {
                             );
                         }
 
-                        if (playersSkipped.size / (players.size - 1) > 0.5) {
+                        if (playersSkipped.size / (players.size - 1) >= 0.5) {
                             // Not clearing playersSkipped because that is done when beatmap is changed
 
                             changeRoomBeatmap(pickRandomMapHash(archetypeOption));
