@@ -48,9 +48,9 @@ client.once('ready', () => {
         const memUsed = Math.round((os.totalmem() - os.freemem()) / os.totalmem() * 100);
         const platform = os.platform();
 
-        const status = `ram${memUsed} [${platform}]`;
+        const status = `${platform} [${memUsed}%]`;
 
-        client.user.setStatus(status);
+        client.user.setActivity(status, { type: 'PLAYING' });
     }, 10000);
 });
 
@@ -65,7 +65,7 @@ client.on('interactionCreate', async (interaction) => {
         await command.run(client, interaction, db);
     } catch (error) {
         console.error(error);
-        await interaction.reply({ content: 'Error.', ephemeral: true });
+        await interaction.reply({ content: 'Something went wrong!', ephemeral: true });
     }
 });
 

@@ -103,7 +103,7 @@ async function run(client, interaction, db) {
 
     const droidProfileEmbed = new MessageEmbed()
         .setTitle('👤 | Profile')
-        .setColor('#ff80ff');
+        .setColor('#ff79b8');
 
     var droidId;
 
@@ -235,7 +235,7 @@ async function run(client, interaction, db) {
 
         const droidRecentEmbed = new MessageEmbed()
             .setTitle(`${play.title}`)
-            .setColor('#ff80ff')
+            .setColor('#ff79b8')
             .setDescription(stripIndents`
                 [${rankingEmoji}] | ${play.score} | __**${dpp.total.toFixed(2)}dpp** - ${droidRating.total.toFixed(2)}__* (${pp.total.toFixed(2)}pp - ${osuRating.total.toFixed(2)}*)\n
                 ${play.mods} (x${speedMultiplier}) | ${play.accuracy}% | ${play.combo}x | ${play.misscount} ❌ | <t:${timestamp}:R>  

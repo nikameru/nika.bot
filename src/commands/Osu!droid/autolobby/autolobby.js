@@ -5,7 +5,8 @@ const path = require('path');
 
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const { MessageEmbed } = require('discord.js');
-const { 
+const {
+    getRooms,
     createRoom,
     connectToRoom,
     disconnectFromRoom,
@@ -13,7 +14,9 @@ const {
     roomMatchPlay,
     changeRoomBeatmap,
     messageRoomChat,
-    setRoomFreeMods
+    setRoomFreeMods,
+    setRoomMods,
+    setRoomName
 } = require('../../../utils/droidApi/droidApi.js');
 
 const somethingWentWrongEmbed = new MessageEmbed()
@@ -23,10 +26,30 @@ const somethingWentWrongEmbed = new MessageEmbed()
 const createdRoomEmbed = new MessageEmbed()
     .setColor('#99ec00');
 
+const roomStatusEmbed = new MessageEmbed()
+    .setColor('#ff79b8');
+
 /*const roomInfoEmbed = new MessageEmbed()
-    .setColor('#ff80ff');*/
+    .setColor('#ff79b8');*/
+
+const roomStatuses = ['Idle', 'Changing beatmap', 'Playing'];
 
 const connectedToSocketEmitter = new EventEmitter();
+
+// Socket instance
+
+var socket = null;
+
+// Forced mods that can be enabled based on picked map type
+
+const supportedForceMods = {
+    'DT': 'dc',
+    'HD': 'h',
+    'HR': 'r',
+    'NM': ''
+};
+
+// Available map types collections
 
 var mapCollections = [];
 
@@ -80,6 +103,8 @@ async function run(client, interaction, db, shouldReconnect = false) {
         var archetypeOption;
 
         if (shouldReconnect) {
+            // Default map type
+
             archetypeOption = 'NM1';
         } else {
             await interaction.deferReply();
@@ -98,27 +123,29 @@ async function run(client, interaction, db, shouldReconnect = false) {
             createdRoomEmbed.setDescription(
                 `✅ **| Created __new__ autolobby due to inactivity kick alert with default map type ("NM1").**`
             );
-            
+
             await interaction.channel.send({ embeds: [createdRoomEmbed] });
         } else {
             createdRoomEmbed.setDescription(
-                `✅ **| Created autolobby __nika_bot\'s autolobby__ with "${archetypeOption}" map type.**`
+                `✅ **| Created autolobby __『${archetypeOption}』autolobby__ with "${archetypeOption}" map type.**`
             );
 
             await interaction.editReply({ embeds: [createdRoomEmbed] });
         }
 
-        connectedToSocketEmitter.once('socketConnection', async (socket) => {
+        connectedToSocketEmitter.once('socketConnection', async (connectedSocket) => {
+            socket = connectedSocket;
+
             // Free mods setting is true by default
 
             setRoomFreeMods(true);
+
+            setRoomName(`『${archetypeOption}』autolobby`);
 
             // Force setting initial map
 
             const initialMap = await pickRandomMapHash(archetypeOption);
             await changeRoomBeatmap(initialMap);
-
-            await wait(2000);
 
             // List of players in the room - { uid: [username, status] }
 
@@ -172,7 +199,7 @@ async function run(client, interaction, db, shouldReconnect = false) {
 
             socket.on('chatMessage', (uid, message) => {
                 logsChannel.send(
-                    `~ chat: ${players.get(uid) ? players.get(uid).username : 'SYSTEM'} (uid: ${uid}) - ${message}`
+                    `${players.get(uid) ? players.get(uid).username : 'SYSTEM'} (uid: ${uid}) - ${message}`
                 );
 
                 // Creating new room in order not to get kicked for inactivity in case nobody plays
@@ -182,24 +209,34 @@ async function run(client, interaction, db, shouldReconnect = false) {
                 }
 
                 // Command handling
-    
+
                 if (!message.startsWith('/')) return;
 
                 const roomCommandArgs = message.slice(1).split(' ');
                 const roomCommandName = roomCommandArgs.shift();
 
-                console.log(`~ command: ${roomCommandName} with args "${roomCommandArgs.join(' ,')}"`);
+                console.log(`~ command: ${roomCommandName} with args "${roomCommandArgs.join(', ')}"`);
 
                 switch (roomCommandName) {
                     case 'help':
                     case 'h':
                         messageRoomChat('/help - Sends a list of bot\'s commands (alias: /h)');
-                        messageRoomChat('/type [type] - Change picked beatmaps type (alias: /t)');
+                        messageRoomChat('/type [type] (forced) - Change picked beatmaps type (alias: /t)');
                         messageRoomChat('/skip - Start a vote for skipping current beatmap (alias: /s)');
                         messageRoomChat('/credits - Information about the bot (alias: /c)');
                         break;
                     case 'type':
                     case 't':
+                        var forceMods = false;
+
+                        // Check if room should have corresponding mods forced (if supported)
+
+                        if (roomCommandArgs.includes('forced')) {
+                            roomCommandArgs.pop();
+
+                            forceMods = true;
+                        }
+
                         let type = roomCommandArgs.length > 1 ? roomCommandArgs.join(' ') : roomCommandArgs[0];
 
                         if (!mapCollections.includes(type)) {
@@ -207,6 +244,40 @@ async function run(client, interaction, db, shouldReconnect = false) {
                         } else {
                             archetypeOption = type;
                             messageRoomChat(`Changed picked maps type to "${type}"`);
+
+                            // Changing room name to display current map type
+
+                            setRoomName(`『${archetypeOption}』autolobby`);
+
+                            // Skipping current beatmap so that type change has effect immediately
+
+                            changeRoomBeatmap(pickRandomMapHash(archetypeOption));
+
+                            // Forcing corresponding mod if needed
+                            // Otherwise mods are set to being free in case they weren't previously
+
+                            if (!forceMods)  {
+                                setRoomFreeMods(true);
+                                
+                                return messageRoomChat('Set free mods');
+                            }
+
+                            // First two symbols of the current type, so DT, HR, etc.
+
+                            const forcedMod = archetypeOption.slice(0, 2);
+
+                            if (forcedMod in supportedForceMods) {
+                                // Getting mod string and forcing it
+
+                                setRoomFreeMods(false);
+                                setRoomMods(supportedForceMods[forcedMod]);
+
+                                messageRoomChat(`Set forced mod to ${forcedMod}`);
+                            } else {
+                                messageRoomChat(
+                                    `There aren\'t any mods that can be forced for type "${archetypeOption}"!`
+                                );
+                            }
                         }
                         break;
                     case 'skip':
@@ -239,7 +310,7 @@ async function run(client, interaction, db, shouldReconnect = false) {
                     case 'c':
                         messageRoomChat(
                             'This bot is made for autopicking beatmaps ' +
-                            'in osu!droid multiplayer based on the chosen type'
+                            'in osu!droid multiplayer based on the chosen map type'
                         );
                         messageRoomChat('Credits: development of the bot - nikameru, map library (collections) - unclem');
                         break;
@@ -250,8 +321,6 @@ async function run(client, interaction, db, shouldReconnect = false) {
             });
 
             socket.on('beatmapChanged', (map) => {
-                console.log(map);
-            
                 // Always cleaning previous skip voting results
 
                 playersSkipped.clear();
@@ -261,7 +330,7 @@ async function run(client, interaction, db, shouldReconnect = false) {
 
             socket.on('roomStatusChanged', (status) => {
                 console.log(`~ room status changed: ${roomStatus} -> ${status}`);
-        
+
                 // Ensuring that status has *changed* to 0 to avoid looped beatmap changing
 
                 if (status == 0) {
@@ -287,10 +356,47 @@ async function run(client, interaction, db, shouldReconnect = false) {
         await connectToRoom(roomInfo.id, connectedToSocketEmitter);
     } else if (subcommandName == 'delete') {
         if (await disconnectFromRoom()) {
+            socket = null;
+
             interaction.reply({ content: 'Disconnected' });
         } else {
             interaction.reply({ content: 'No connection is present!' });
         }
+    } else if (subcommandName == 'status') {
+        var autolobbyRoom = null;
+
+        const rooms = await getRooms();
+
+        if (!rooms) return interaction.reply({ content: 'Failed to retrieve rooms list!' });
+
+        for (let room of rooms) {
+            let names = room.playerNames.split(', ');
+
+            if (names.includes('nika_bot')) {
+                autolobbyRoom = room;
+                break;
+            }
+        }
+
+        if (!autolobbyRoom) return interaction.reply({ content: 'No autolobby is present!' });
+
+        roomStatusEmbed.setTitle(`:information_source: | Autolobby status`)
+            .setDescription(
+                `**Name:** ${autolobbyRoom.name}\n` +
+                `**ID:** ${autolobbyRoom.id}\n` +
+                `**Locked:** ${autolobbyRoom.isLocked}\n` +
+                `**Player limit:** ${autolobbyRoom.maxPlayers}\n` +
+                `**Players (${autolobbyRoom.playerCount}):** ${autolobbyRoom.playerNames}\n` +
+                `**Status:** ${roomStatuses[autolobbyRoom.status]}`
+            )
+            .setFooter({ text: 'from nikameru with 💜', iconURL: client.user.displayAvatarURL() })
+            .setTimestamp();
+
+        interaction.reply({ embeds: [roomStatusEmbed] });
+    } else if (subcommandName == 'leaderboard') {
+        if (!socket) return interaction.reply({ content: 'No connection is present!' });
+
+        // TODO
     }
 }
 
@@ -309,6 +415,14 @@ const config = new SlashCommandBuilder()
     .addSubcommand(subcommand =>
         subcommand.setName('delete')
             .setDescription('Delete an osu!droid multiplayer room with automatically refreshed map.')
+    )
+    .addSubcommand(subcommand =>
+        subcommand.setName('status')
+            .setDescription('Displays autolobby status.')
+    )
+    .addSubcommand(subcommand =>
+        subcommand.setName('leaderboard')
+            .setDescription('Shows autolobby real-time leaderboard, just like osu!droid does.')
     );
 
 module.exports = { run, config };

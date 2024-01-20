@@ -9,6 +9,7 @@ const droidDPPUrl = 'http://droidpp.osudroid.moe/profile/';
 const profilePath = 'profile.php?uid=';
 
 const droidMultiUrl = 'https://multi.osudroid.moe';
+const getRoomsPath = '/getrooms';
 const createRoomPath = '/createroom';
 
 const osuUrl = 'https://osu.ppy.sh/';
@@ -55,7 +56,29 @@ const blankScore = {
 
 var socket = null;
 
+async function getRooms() {
+    var roomList = null;
+
+    await axios.get(droidMultiUrl + getRoomsPath + `?sign=${process.env.DROID_GETROOMS_SIGN}`)
+        .then(function (res) {
+            if (res.status == 200) {
+                console.log(`~ request succeeded: ${res.status} - ${res.statusText}`);
+                
+                roomList = res.data;
+            }
+        }).catch(function (err) {
+            if (err.response) {
+                console.log(`~ request failed: ${err.toJSON().status}`);
+            } else {
+                console.log(`~ request failed: no response`);
+            }
+        });
+
+    return roomList;
+}
+
 // Name, password, etc. should be static because request sign depends on them
+
 async function createRoom() {
     var roomInfo = null;
 
@@ -157,9 +180,31 @@ function messageRoomChat(message) {
     console.log(`~ sent message: ${message}`);
 }
 
+function setRoomName(name) {
+    if (name.length > 33) {
+        return console.log('~ too many characters in a room name!');
+    }
+
+    socket.emit('roomNameChanged', name);
+    console.log(`~ changed room name to ${name}`)
+}
+
 function setRoomFreeMods(value) {
     socket.emit('roomGameplaySettingsChanged', { 'isFreeMod': value });
     console.log(`~ set room free mods to ${value}`);
+}
+
+// Other parameters aren't needed, so they're hardcoded
+
+function setRoomMods(mods) {
+    const roomMods = {
+        'mods': mods,
+        'speedMultiplier': 1,
+        'flFollowDelay': 0.12
+    };
+
+    socket.emit('roomModsChanged', roomMods);
+    console.log('`~ changed room mods to', roomMods);
 }
 
 async function getRecentPlays(uid, index, amount) {
@@ -259,7 +304,8 @@ async function getBeatmapInfoByHash(hash) {
     return res.status == 200 ? res.data : null;
 }
 
-module.exports = { 
+module.exports = {
+    getRooms, 
     createRoom,
     connectToRoom, 
     disconnectFromRoom,
@@ -268,6 +314,8 @@ module.exports = {
     roomMatchPlay,
     messageRoomChat,
     setRoomFreeMods,
+    setRoomMods,
+    setRoomName,
     getRecentPlays,
     getProfileDPP,
     getBeatmapInfoByHash
