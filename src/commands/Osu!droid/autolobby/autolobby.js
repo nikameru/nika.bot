@@ -80,11 +80,11 @@ async function run(client, interaction, db, shouldReconnect = false) {
         var archetypeOption;
 
         if (shouldReconnect) {
-            archetypeOption = '[NM]';
+            archetypeOption = 'NM1';
         } else {
             await interaction.deferReply();
 
-            archetypeOption = await interaction.options.getString('archetype') || '[NM]';
+            archetypeOption = await interaction.options.getString('archetype') || 'NM1';
 
             if (!mapCollections.includes(archetypeOption)) {
                 return interaction.editReply({ content: 'Specified map archetype not found!' });
@@ -94,17 +94,15 @@ async function run(client, interaction, db, shouldReconnect = false) {
         var roomInfo = await createRoom();
         if (!roomInfo) return interaction.channel.send({ embeds: [somethingWentWrongEmbed] });
 
-        await connectToRoom(roomInfo.id, connectedToSocketEmitter);
-
         if (shouldReconnect) {
             createdRoomEmbed.setDescription(
-                `✅ **| Created __new__ autolobby due to inactivity kick alert with default map type (NM).**`
+                `✅ **| Created __new__ autolobby due to inactivity kick alert with default map type ("NM1").**`
             );
             
             await interaction.channel.send({ embeds: [createdRoomEmbed] });
         } else {
             createdRoomEmbed.setDescription(
-                `✅ **| Created autolobby __nika_bot\'s autolobby__ with ${archetypeOption} map type.**`
+                `✅ **| Created autolobby __nika_bot\'s autolobby__ with "${archetypeOption}" map type.**`
             );
 
             await interaction.editReply({ embeds: [createdRoomEmbed] });
@@ -177,7 +175,7 @@ async function run(client, interaction, db, shouldReconnect = false) {
                     `~ chat: ${players.get(uid) ? players.get(uid).username : 'SYSTEM'} (uid: ${uid}) - ${message}`
                 );
 
-                // Not allowing the server to kick the bot in case nobody plays in the room
+                // Creating new room in order not to get kicked for inactivity in case nobody plays
 
                 if (!uid && message.includes('host will be kicked for inactivity')) {
                     return run(client, interaction, null, true);
@@ -208,7 +206,7 @@ async function run(client, interaction, db, shouldReconnect = false) {
                             messageRoomChat(`No type ${type} found! Available types: ${mapCollections.join(', ')}`);
                         } else {
                             archetypeOption = type;
-                            messageRoomChat(`Changed picked maps type to ${type}`);
+                            messageRoomChat(`Changed picked maps type to "${type}"`);
                         }
                         break;
                     case 'skip':
@@ -285,6 +283,8 @@ async function run(client, interaction, db, shouldReconnect = false) {
                 roomStatus = status;
             });
         });
+
+        await connectToRoom(roomInfo.id, connectedToSocketEmitter);
     } else if (subcommandName == 'delete') {
         if (await disconnectFromRoom()) {
             interaction.reply({ content: 'Disconnected' });
