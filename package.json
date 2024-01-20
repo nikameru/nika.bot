@@ -46,6 +46,7 @@
     "pngquant": "^4.0.0",
     "pngquant-bin": "^6.0.1",
     "puppeteer": "^20.9.0",
+    "request": "^2.88.2",
     "socket.io": "^4.7.4",
     "socket.io-client": "^4.7.4",
     "svgo": "^2.8.0",

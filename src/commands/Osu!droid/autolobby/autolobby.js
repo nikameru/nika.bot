@@ -72,28 +72,45 @@ function pickRandomMapHash(archetype) {
     return roomInfoEmbed;
 }*/
 
-async function run(client, interaction) {
+async function run(client, interaction, db, shouldReconnect = false) {
     const logsChannel = await client.channels.fetch('943228757387407400');
     const subcommandName = await interaction.options.getSubcommand();
 
     if (subcommandName == 'create') {
-        await interaction.deferReply();
+        var archetypeOption;
 
-        var archetypeOption = await interaction.options.getString('archetype') || 'Jumps [Ultimate Pack]';
+        if (shouldReconnect) {
+            archetypeOption = '[NM]';
+        } else {
+            await interaction.deferReply();
 
-        if (!mapCollections.includes(archetypeOption)) { 
-            return interaction.editReply({ content: 'Specified map archetype not found!' });
+            archetypeOption = await interaction.options.getString('archetype') || '[NM]';
+
+            if (!mapCollections.includes(archetypeOption)) {
+                return interaction.editReply({ content: 'Specified map archetype not found!' });
+            }
         }
 
         var roomInfo = await createRoom();
-        if (!roomInfo) return interaction.editReply({ embeds: [somethingWentWrongEmbed] });
+        if (!roomInfo) return interaction.channel.send({ embeds: [somethingWentWrongEmbed] });
 
         await connectToRoom(roomInfo.id, connectedToSocketEmitter);
 
-        connectedToSocketEmitter.once('socketConnection', async (socket) => {
-            createdRoomEmbed.setDescription(`✅ **| Created autolobby __nika.bot\'s autolobby__ with ${archetypeOption} maps.**`);
-            await interaction.editReply({ embeds: [createdRoomEmbed] });
+        if (shouldReconnect) {
+            createdRoomEmbed.setDescription(
+                `✅ **| Created __new__ autolobby due to inactivity kick alert with default map type (NM).**`
+            );
+            
+            await interaction.channel.send({ embeds: [createdRoomEmbed] });
+        } else {
+            createdRoomEmbed.setDescription(
+                `✅ **| Created autolobby __nika_bot\'s autolobby__ with ${archetypeOption} map type.**`
+            );
 
+            await interaction.editReply({ embeds: [createdRoomEmbed] });
+        }
+
+        connectedToSocketEmitter.once('socketConnection', async (socket) => {
             // Free mods setting is true by default
 
             setRoomFreeMods(true);
@@ -163,8 +180,7 @@ async function run(client, interaction) {
                 // Not allowing the server to kick the bot in case nobody plays in the room
 
                 if (!uid && message.includes('host will be kicked for inactivity')) {
-                    setPlayerStatus(0);
-                    setPlayerStatus(1);
+                    return run(client, interaction, null, true);
                 }
 
                 // Command handling

@@ -109,8 +109,6 @@ async function connectToRoom(roomId, connectedEmitter) {
 async function disconnectFromRoom() {
     if (socket) {
         await socket.disconnect();
-        await socket.removeAllListeners();
-
         return true;
     } else {
         return false;

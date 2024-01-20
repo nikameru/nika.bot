@@ -95,6 +95,8 @@ function setDroidProfileStats(options, client, droidProfileEmbed) {
 }
 
 async function run(client, interaction, db) {
+    await interaction.deferReply();
+
     const subcommandName = await interaction.options.getSubcommand();
     const droidUsersCollection = await db.collection('droidUsersCollection');
     const droidUser = await droidUsersCollection.findOne({ userId: interaction.user.id });
@@ -106,7 +108,7 @@ async function run(client, interaction, db) {
     var droidId;
 
     if (droidUser == null && interaction.options.getInteger('uid') == null) {
-        return interaction.reply({ embeds: [uidNotSpecifiedEmbed] });
+        return interaction.editReply({ embeds: [uidNotSpecifiedEmbed] });
     } else if (droidUser == null || interaction.options.getInteger('uid') != null) {
         droidId = interaction.options.getInteger('uid');
     } else {
@@ -118,7 +120,7 @@ async function run(client, interaction, db) {
             if (err) console.log(err);
             
             if (result.length != 0) {
-                return interaction.reply({ embeds: [accessDeniedEmbed] });
+                return interaction.editReply({ embeds: [accessDeniedEmbed] });
             } else {
                 droidUsersCollection.find({
                     droidId: droidId
@@ -126,7 +128,7 @@ async function run(client, interaction, db) {
                     if (err) console.log(err);
 
                     if (result.length != 0) {
-                        return interaction.reply({ embeds: [accessDeniedEmbed] });
+                        return interaction.editReply({ embeds: [accessDeniedEmbed] });
                     } else {
                         droidUsersCollection.insertOne(
                             {
@@ -143,7 +145,7 @@ async function run(client, interaction, db) {
                                     `**✅ | Successfully binded ${droidId} to ${interaction.user}!**`
                                 );
 
-                                interaction.reply({ embeds: [droidAccountBindedEmbed] });
+                                interaction.editReply({ embeds: [droidAccountBindedEmbed] });
                             }
                         );
                     }
@@ -154,11 +156,11 @@ async function run(client, interaction, db) {
         requestOptions.path = '/api/profile/stats/' + droidId;
 
         if (!setDroidProfileStats(requestOptions, client, droidProfileEmbed)) {
-            return interaction.reply({ embeds: [somethingWentWrongEmbed] });
+            return interaction.editReply({ embeds: [somethingWentWrongEmbed] });
         }
 
         requestDataObtainedEmitter.once('requestDataObtained', function () {
-            interaction.reply({ embeds: [droidProfileEmbed], components: [droidProfileRow] });
+            interaction.editReply({ embeds: [droidProfileEmbed], components: [droidProfileRow] });
 
             const interactionFilter = i => i.customId == 'graphButton' && i.user.id == interaction.user.id;
 
@@ -169,7 +171,7 @@ async function run(client, interaction, db) {
                     try {
                         renderOsuDroidRankGraph(interaction.user.id, droidId, droidGraphRenderedEmitter);
                     } catch {
-                        return interaction.reply({ embeds: [somethingWentWrongEmbed] });
+                        return interaction.editReply({ embeds: [somethingWentWrongEmbed] });
                     }
 
                     droidGraphRenderedEmitter.once('graphRendered', function () {
@@ -196,7 +198,7 @@ async function run(client, interaction, db) {
         const beatmapData = await MapInfo.getInformation(play.hash);
 
         if (!beatmapData) {
-            return interaction.reply({ embeds: [mapNotFoundEmbed] });
+            return interaction.editReply({ embeds: [mapNotFoundEmbed] });
         }
 
         const osuRating = new OsuDifficultyCalculator(beatmapData.beatmap).calculate();
@@ -238,14 +240,14 @@ async function run(client, interaction, db) {
                 [${rankingEmoji}] | ${play.score} | __**${dpp.total.toFixed(2)}dpp** - ${droidRating.total.toFixed(2)}__* (${pp.total.toFixed(2)}pp - ${osuRating.total.toFixed(2)}*)\n
                 ${play.mods} (x${speedMultiplier}) | ${play.accuracy}% | ${play.combo}x | ${play.misscount} ❌ | <t:${timestamp}:R>  
             `)
-            .setThumbnail(`https://b.ppy.sh/thumb/${beatmapData.beatmapsetID}l.jpg`)
+            .setThumbnail(`https://b.ppy.sh/thumb/${beatmapData.beatmapSetId}l.jpg`)
             .setFooter({ text: 'from nikameru with 💜', iconURL: client.user.displayAvatarURL() })
             .setTimestamp();
 
         console.log(speedMultiplier, play.mods.split(', '))
         console.log(droidRating.total)
 
-        interaction.reply({ content: `✅ **| Recent play for __${droidId}__:**`, embeds: [droidRecentEmbed] });
+        interaction.editReply({ content: `✅ **| Recent play for __${droidId}__:**`, embeds: [droidRecentEmbed] });
     }
 }
 
