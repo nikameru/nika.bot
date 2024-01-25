@@ -107,10 +107,7 @@ async function connectToRoom(roomId, connectedEmitter) {
 
     console.log(`~ connecting to socket (${droidMultiUrl}/${roomId}), ${JSON.stringify(authData)}`);
 
-    socket = io(`${droidMultiUrl}/${roomId}`, {
-        auth: authData,
-        //reconnection: false 
-    }).connect();
+    socket = io(`${droidMultiUrl}/${roomId}`, { auth: authData }).connect();
 
     socket.on('connect', () => {
         console.log(`~ connected successfully to socket ${socket.id}`);
@@ -141,7 +138,7 @@ async function disconnectFromRoom() {
 async function changeRoomBeatmap(hash) {
     const beatmapInfo = await getBeatmapInfoByHash(hash);
 
-    if (!beatmapInfo[0]) return console.log('~ no beatmap info found!');
+    if (!beatmapInfo[0]) return false;
 
     const roomBeatmapInfo = {
         'md5': hash,
@@ -152,8 +149,9 @@ async function changeRoomBeatmap(hash) {
     };
 
     await socket.emit('beatmapChanged', roomBeatmapInfo);
-
     console.log(`~ changed room beatmap to ${beatmapInfo[0].artist} - ${beatmapInfo[0].title} (${hash})`);
+
+    return true;
 }
 
 function setPlayerStatus(status) {
@@ -169,7 +167,7 @@ async function roomMatchPlay() {
 
     console.log(`~ emitted match start`);
 
-    await wait(1000);
+    await wait(3000);
     await socket.emit('scoreSubmission', blankScore);
 
     console.log(`~ submitted blank score`);
@@ -204,7 +202,7 @@ function setRoomMods(mods) {
     };
 
     socket.emit('roomModsChanged', roomMods);
-    console.log('`~ changed room mods to', roomMods);
+    console.log('`~ changed room mods to', mods);
 }
 
 async function getRecentPlays(uid, index, amount) {

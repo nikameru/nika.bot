@@ -23,6 +23,14 @@ const somethingWentWrongEmbed = new MessageEmbed()
     .setColor('#ff4646')
     .setDescription('❌ **| Something went wrong.**');
 
+const randomDisconnectEmbed = new MessageEmbed()
+    .setColor('#ff4646')
+    .setDescription('❗ **| <@!600113325178880002> Encountered a random disconnect!**');
+
+const roomChatLogEmbed = new MessageEmbed()
+    .setTitle('💬 | Autolobby chat log')
+    .setColor('#4cd0ff');
+
 const createdRoomEmbed = new MessageEmbed()
     .setColor('#99ec00');
 
@@ -38,7 +46,7 @@ const connectedToSocketEmitter = new EventEmitter();
 
 // Socket instance
 
-var socket = null;
+// var socket = null;
 
 // Forced mods that can be enabled based on picked map type
 
@@ -133,8 +141,10 @@ async function run(client, interaction, db, shouldReconnect = false) {
             await interaction.editReply({ embeds: [createdRoomEmbed] });
         }
 
-        connectedToSocketEmitter.once('socketConnection', async (connectedSocket) => {
-            socket = connectedSocket;
+        connectedToSocketEmitter.once('socketConnection', async (socket) => {
+            //socket = connectedSocket;
+
+            var roomStatus = 0;
 
             // Free mods setting is true by default
 
@@ -160,9 +170,17 @@ async function run(client, interaction, db, shouldReconnect = false) {
             players.set('454815', { username: 'nika_bot', status: 1 });
             setPlayerStatus(1);
 
-            var roomStatus = 0;
+            // Additional 'disconnect' event for handling random disconnections
 
-            // Event listeners
+            socket.on('disconnect', () => {
+                logsChannel.send({ embeds: [randomDisconnectEmbed] });
+
+                // TODO (experimenting)
+                
+                socket.connect((err) => {
+                    if (err) console.log(`~ error while reconnecting! ${err}`);
+                });
+            });
 
             socket.on('playerJoined', (data) => {
                 console.log(`~ player joined: ${data.username} (uid: ${data.uid})`);
@@ -198,9 +216,18 @@ async function run(client, interaction, db, shouldReconnect = false) {
             });
 
             socket.on('chatMessage', (uid, message) => {
-                logsChannel.send(
-                    `${players.get(uid) ? players.get(uid).username : 'SYSTEM'} (uid: ${uid}) - ${message}`
-                );
+                // Chat logging
+
+                roomChatLogEmbed.addFields({
+                    name: `**${players.get(uid) ? players.get(uid).username : 'SYSTEM'}**`,
+                    value: message
+                });
+
+                if (roomChatLogEmbed.fields.length == 25) {
+                    logsChannel.send({ embeds: [roomChatLogEmbed.setTimestamp()] });
+
+                    roomChatLogEmbed.spliceFields(0, 25);
+                }
 
                 // Creating new room in order not to get kicked for inactivity in case nobody plays
 
@@ -394,9 +421,9 @@ async function run(client, interaction, db, shouldReconnect = false) {
 
         interaction.reply({ embeds: [roomStatusEmbed] });
     } else if (subcommandName == 'leaderboard') {
-        if (!socket) return interaction.reply({ content: 'No connection is present!' });
-
         // TODO
+
+
     }
 }
 
