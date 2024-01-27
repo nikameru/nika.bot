@@ -9,6 +9,7 @@ const {
     getRooms,
     createRoom,
     connectToRoom,
+    reconnectToRoom,
     disconnectFromRoom,
     setPlayerStatus,
     roomMatchPlay,
@@ -23,9 +24,9 @@ const somethingWentWrongEmbed = new MessageEmbed()
     .setColor('#ff4646')
     .setDescription('❌ **| Something went wrong.**');
 
-const randomDisconnectEmbed = new MessageEmbed()
-    .setColor('#ff4646')
-    .setDescription('❗ **| <@!600113325178880002> Encountered a random disconnect!**');
+const socketDisconnectEmbed = new MessageEmbed()
+    .setTitle('❗ | Socket disconnect!')
+    .setColor('#ff4646');
 
 const roomChatLogEmbed = new MessageEmbed()
     .setTitle('💬 | Autolobby chat log')
@@ -37,16 +38,11 @@ const createdRoomEmbed = new MessageEmbed()
 const roomStatusEmbed = new MessageEmbed()
     .setColor('#ff79b8');
 
-/*const roomInfoEmbed = new MessageEmbed()
-    .setColor('#ff79b8');*/
+const roomLeaderboardEmbed = new MessageEmbed()
+    .setTitle('🏆 | Autolobby live leaderboard')
+    .setColor('#e0e346');
 
 const roomStatuses = ['Idle', 'Changing beatmap', 'Playing'];
-
-const connectedToSocketEmitter = new EventEmitter();
-
-// Socket instance
-
-// var socket = null;
 
 // Forced mods that can be enabled based on picked map type
 
@@ -56,6 +52,22 @@ const supportedForceMods = {
     'HR': 'r',
     'NM': ''
 };
+
+const connectedToSocketEmitter = new EventEmitter();
+
+// Socket instance
+
+var socket = null;
+
+var roomStatus = 0;
+
+// List of players in the room - { uid: [username, status] }
+
+const players = new Map();
+
+// For handling /skip command voting
+
+const playersSkipped = new Set();
 
 // Available map types collections
 
@@ -92,16 +104,11 @@ function pickRandomMapHash(archetype) {
     return sortedMaps.hashes[Math.floor(Math.random() * (sortedMaps.size - 1))];
 }
 
-/*function updateRoomInfoEmbed(roomStatus, map, playerAmount) {
-    if (roomStatus) roomStatusDescription = `- Room status: ${roomStatuses[roomStatus]} (${playerAmount}/8 players)`;
-    if (map) roomMapDescription = `- Map info: ${map.artist} - ${map.title} [${map.version}] by ${map.artist}`;
+async function pickRandomBeatmap(archetype) {
+    const beatmapHash = pickRandomMapHash(archetype);
 
-    roomInfoEmbed.setTitle(`🎮 | Autolobby info`)
-        .setDescription(roomStatusDescription + '\n\n' + roomMapDescription)
-        .setTimestamp();
-
-    return roomInfoEmbed;
-}*/
+    if (!await changeRoomBeatmap(beatmapHash)) pickRandomBeatmap(archetype);
+}
 
 async function run(client, interaction, db, shouldReconnect = false) {
     const logsChannel = await client.channels.fetch('943228757387407400');
@@ -141,10 +148,13 @@ async function run(client, interaction, db, shouldReconnect = false) {
             await interaction.editReply({ embeds: [createdRoomEmbed] });
         }
 
-        connectedToSocketEmitter.once('socketConnection', async (socket) => {
-            //socket = connectedSocket;
+        connectedToSocketEmitter.once('socketConnection', async (connectedSocket) => {
+            // Setting variables as it is initial connection
 
-            var roomStatus = 0;
+            socket = connectedSocket;
+            roomStatus = 0;
+            players = new Map();
+            playersSkipped = new Set();
 
             // Free mods setting is true by default
 
@@ -155,15 +165,7 @@ async function run(client, interaction, db, shouldReconnect = false) {
             // Force setting initial map
 
             const initialMap = await pickRandomMapHash(archetypeOption);
-            await changeRoomBeatmap(initialMap);
-
-            // List of players in the room - { uid: [username, status] }
-
-            const players = new Map();
-
-            // For handling /skip command voting
-
-            const playersSkipped = new Set();
+            await pickRandomBeatmap(initialMap);
 
             // Self-bot is ready by default
 
@@ -172,14 +174,19 @@ async function run(client, interaction, db, shouldReconnect = false) {
 
             // Additional 'disconnect' event for handling random disconnections
 
-            socket.on('disconnect', () => {
-                logsChannel.send({ embeds: [randomDisconnectEmbed] });
+            socket.on('disconnect', async (reason) => {
+                if (reason == 'io client disconnect') return;
 
-                // TODO (experimenting)
-                
-                socket.connect((err) => {
-                    if (err) console.log(`~ error while reconnecting! ${err}`);
+                logsChannel.send({
+                    content: '<@!600113325178880002>',
+                    embeds: [socketDisconnectEmbed.setDescription(`Reason: **${reason}**`)]
                 });
+
+                await reconnectToRoom();
+
+                // Bot status needs to be reverted back to 'ready' after reconnection
+
+                setPlayerStatus(1);
             });
 
             socket.on('playerJoined', (data) => {
@@ -223,10 +230,10 @@ async function run(client, interaction, db, shouldReconnect = false) {
                     value: message
                 });
 
-                if (roomChatLogEmbed.fields.length == 25) {
+                if (roomChatLogEmbed.fields.length == 5) {
                     logsChannel.send({ embeds: [roomChatLogEmbed.setTimestamp()] });
 
-                    roomChatLogEmbed.spliceFields(0, 25);
+                    roomChatLogEmbed.spliceFields(0, 5);
                 }
 
                 // Creating new room in order not to get kicked for inactivity in case nobody plays
@@ -278,12 +285,13 @@ async function run(client, interaction, db, shouldReconnect = false) {
 
                             // Skipping current beatmap so that type change has effect immediately
 
-                            changeRoomBeatmap(pickRandomMapHash(archetypeOption));
+                            pickRandomBeatmap(archetypeOption);
 
                             // Forcing corresponding mod if needed
                             // Otherwise mods are set to being free in case they weren't previously
 
-                            if (!forceMods)  {
+                            if (!forceMods) {
+                                setRoomMods(supportedForceMods['NM']);
                                 setRoomFreeMods(true);
                                 
                                 return messageRoomChat('Set free mods');
@@ -296,8 +304,8 @@ async function run(client, interaction, db, shouldReconnect = false) {
                             if (forcedMod in supportedForceMods) {
                                 // Getting mod string and forcing it
 
-                                setRoomFreeMods(false);
                                 setRoomMods(supportedForceMods[forcedMod]);
+                                setRoomFreeMods(false);
 
                                 messageRoomChat(`Set forced mod to ${forcedMod}`);
                             } else {
@@ -339,7 +347,10 @@ async function run(client, interaction, db, shouldReconnect = false) {
                             'This bot is made for autopicking beatmaps ' +
                             'in osu!droid multiplayer based on the chosen map type'
                         );
-                        messageRoomChat('Credits: development of the bot - nikameru, map library (collections) - unclem');
+                        messageRoomChat(
+                            'Credits: development of the bot - nikameru, ' +
+                            'map library (collections) - unclem'
+                        );
                         break;
                     default:
                         messageRoomChat(`No command ${roomCommandName} found! See /help for available commands.`);
@@ -371,8 +382,7 @@ async function run(client, interaction, db, shouldReconnect = false) {
 
                         messageRoomChat('Match has ended. Changing the beatmap...');
 
-                        const randomMapHash = pickRandomMapHash(archetypeOption);
-                        changeRoomBeatmap(randomMapHash);
+                        pickRandomBeatmap(archetypeOption);
                     }
                 }
 
@@ -380,7 +390,7 @@ async function run(client, interaction, db, shouldReconnect = false) {
             });
         });
 
-        await connectToRoom(roomInfo.id, connectedToSocketEmitter);
+        connectToRoom(roomInfo.id, connectedToSocketEmitter);
     } else if (subcommandName == 'delete') {
         if (await disconnectFromRoom()) {
             socket = null;
@@ -421,9 +431,13 @@ async function run(client, interaction, db, shouldReconnect = false) {
 
         interaction.reply({ embeds: [roomStatusEmbed] });
     } else if (subcommandName == 'leaderboard') {
+        if (!socket) return interaction.reply('No connection is present!');
+
         // TODO
 
-
+        socket.on('liveScoreData', (data) => {
+            console.log(data);
+        });
     }
 }
 

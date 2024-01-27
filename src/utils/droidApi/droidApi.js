@@ -99,15 +99,18 @@ async function createRoom() {
     return roomInfo;
 }
 
-async function connectToRoom(roomId, connectedEmitter) {
+function connectToRoom(roomId, connectedEmitter) {
     if (socket) {
         console.log('~ reconnecting to socket');
-        await disconnectFromRoom();
+        disconnectFromRoom();
     }
 
     console.log(`~ connecting to socket (${droidMultiUrl}/${roomId}), ${JSON.stringify(authData)}`);
 
-    socket = io(`${droidMultiUrl}/${roomId}`, { auth: authData }).connect();
+    socket = io(`${droidMultiUrl}/${roomId}`, {
+        auth: authData,
+        reconnection: false
+    }).connect();
 
     socket.on('connect', () => {
         console.log(`~ connected successfully to socket ${socket.id}`);
@@ -119,11 +122,30 @@ async function connectToRoom(roomId, connectedEmitter) {
         console.log(`~ error while connecting to socket: ${err}`);
     });
 
-    socket.on('disconnect', () => {
-        console.log(`~ disconnected from socket`);
+    socket.on('disconnect', (reason) => {
+        console.log(`~ disconnected from socket: ${reason}`);
     });
 
     return socket;
+}
+
+async function reconnectToRoom() {
+    console.log('~ trying to reconnect...');
+
+    if (!socket) {
+        return console.log('~ warning: tried to reconnect while no socket instance is present!');
+    }
+
+    await wait(2000);
+
+    await socket.connect(async (err) => {
+        if (err) {
+            console.log(`~ encountered an error while reconnecting: ${err}!`);
+            await reconnectToRoom();
+        } else {
+            console.log('~ reconnected successfully');
+        }
+    });
 }
 
 async function disconnectFromRoom() {
@@ -161,16 +183,21 @@ function setPlayerStatus(status) {
 
 async function roomMatchPlay() {
     await socket.emit('playBeatmap');
-    
+
     await wait(1000);
     await socket.emit('beatmapLoadComplete');
-
+    
     console.log(`~ emitted match start`);
 
-    await wait(3000);
-    await socket.emit('scoreSubmission', blankScore);
+    socket.once('allPlayersBeatmapLoadComplete', async () => {
+        await wait(1000);
+        await socket.emit('skipRequested');
 
-    console.log(`~ submitted blank score`);
+        await wait(2000);
+        await socket.emit('scoreSubmission', blankScore);
+
+        console.log(`~ submitted blank score`);
+    });
 }
 
 function messageRoomChat(message) {
@@ -185,6 +212,10 @@ function setRoomName(name) {
 
     socket.emit('roomNameChanged', name);
     console.log(`~ changed room name to ${name}`)
+}
+
+function setPlayerMods() {
+
 }
 
 function setRoomFreeMods(value) {
@@ -306,6 +337,7 @@ module.exports = {
     getRooms, 
     createRoom,
     connectToRoom, 
+    reconnectToRoom,
     disconnectFromRoom,
     changeRoomBeatmap,
     setPlayerStatus,

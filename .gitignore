@@ -5,6 +5,8 @@ read_collection
 config.json
 package-lock.json
 eng.traineddata
+*.odr
+*.edr
 res
 media
 log
