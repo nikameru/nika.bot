@@ -55,19 +55,9 @@ const supportedForceMods = {
 
 const connectedToSocketEmitter = new EventEmitter();
 
-// Socket instance
+// Players schema: { uid: [username, status] } []
 
-var socket = null;
-
-var roomStatus = 0;
-
-// List of players in the room - { uid: [username, status] }
-
-const players = new Map();
-
-// For handling /skip command voting
-
-const playersSkipped = new Set();
+var socket, roomStatus, players, playersSkipped = null;
 
 // Available map types collections
 
@@ -164,8 +154,7 @@ async function run(client, interaction, db, shouldReconnect = false) {
 
             // Force setting initial map
 
-            const initialMap = await pickRandomMapHash(archetypeOption);
-            await pickRandomBeatmap(initialMap);
+            await pickRandomBeatmap(archetypeOption);
 
             // Self-bot is ready by default
 
@@ -337,7 +326,7 @@ async function run(client, interaction, db, shouldReconnect = false) {
                         if (playersSkipped.size / (players.size - 1) >= 0.5) {
                             // Not clearing playersSkipped because that is done when beatmap is changed
 
-                            changeRoomBeatmap(pickRandomMapHash(archetypeOption));
+                            pickRandomBeatmap(archetypeOption);
                             messageRoomChat('Skipped the beatmap');
                         }
                         break;

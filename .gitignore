@@ -5,6 +5,7 @@ read_collection
 config.json
 package-lock.json
 eng.traineddata
+*.sjs
 *.odr
 *.edr
 res
