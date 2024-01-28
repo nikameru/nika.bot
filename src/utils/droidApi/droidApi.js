@@ -126,6 +126,10 @@ function connectToRoom(roomId, connectedEmitter) {
         console.log(`~ disconnected from socket: ${reason}`);
     });
 
+    socket.on('error', (error) => {
+        console.log(`~ received an error from the server: ${error}!`);
+    });
+
     return socket;
 }
 
@@ -214,8 +218,17 @@ function setRoomName(name) {
     console.log(`~ changed room name to ${name}`)
 }
 
-function setPlayerMods() {
+// Other parameters aren't needed, so they're hardcoded
 
+function setPlayerMods(mods) {
+    const playerMods = {
+        'mods': mods,
+        'speedMultiplier': 1,
+        'flFollowDelay': 0.12
+    };
+
+    socket.emit('playerModsChanged', playerMods);
+    console.log('`~ changed player mods to', mods);
 }
 
 function setRoomFreeMods(value) {
@@ -343,6 +356,7 @@ module.exports = {
     setPlayerStatus,
     roomMatchPlay,
     messageRoomChat,
+    setPlayerMods,
     setRoomFreeMods,
     setRoomMods,
     setRoomName,

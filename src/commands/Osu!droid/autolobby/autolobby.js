@@ -2,7 +2,6 @@ const fs = require('node:fs');
 const wait = require('node:timers/promises').setTimeout;
 const EventEmitter = require('node:events');
 const path = require('path');
-
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const { MessageEmbed } = require('discord.js');
 const {
@@ -17,8 +16,10 @@ const {
     messageRoomChat,
     setRoomFreeMods,
     setRoomMods,
-    setRoomName
+    setRoomName,
+    setPlayerMods
 } = require('../../../utils/droidApi/droidApi.js');
+const { stripIndents } = require('common-tags');
 
 const somethingWentWrongEmbed = new MessageEmbed()
     .setColor('#ff4646')
@@ -26,6 +27,10 @@ const somethingWentWrongEmbed = new MessageEmbed()
 
 const socketDisconnectEmbed = new MessageEmbed()
     .setTitle('❗ | Socket disconnect!')
+    .setColor('#ff4646');
+
+const serverErrorEmbed = new MessageEmbed()
+    .setTitle('❌ | Server error!')
     .setColor('#ff4646');
 
 const roomChatLogEmbed = new MessageEmbed()
@@ -38,7 +43,11 @@ const createdRoomEmbed = new MessageEmbed()
 const roomStatusEmbed = new MessageEmbed()
     .setColor('#ff79b8');
 
-const roomLeaderboardEmbed = new MessageEmbed()
+const initializedLeaderboardEmbed = new MessageEmbed()
+    .setColor('#99ec00')
+    .setDescription('✅ **| Started watching room matches!**');
+
+const liveLeaderboardEmbed = new MessageEmbed()
     .setTitle('🏆 | Autolobby live leaderboard')
     .setColor('#e0e346');
 
@@ -55,7 +64,7 @@ const supportedForceMods = {
 
 const connectedToSocketEmitter = new EventEmitter();
 
-// Players schema: { uid: [username, status] } []
+// Players schema: { uid : { username: ..., status: ... } }[]
 
 var socket, roomStatus, players, playersSkipped = null;
 
@@ -139,26 +148,26 @@ async function run(client, interaction, db, shouldReconnect = false) {
         }
 
         connectedToSocketEmitter.once('socketConnection', async (connectedSocket) => {
-            // Setting variables as it is initial connection
+            // Setting variables as it is *initial* connection
 
             socket = connectedSocket;
             roomStatus = 0;
             players = new Map();
             playersSkipped = new Set();
 
+            // Needs to be set manually: event 'playerJoined' doesn't being listened to yet
+
+            players.set('454815', { username: 'nika_bot', status: 1 });
+
             // Free mods setting is true by default
 
             setRoomFreeMods(true);
-
             setRoomName(`『${archetypeOption}』autolobby`);
 
             // Force setting initial map
 
             await pickRandomBeatmap(archetypeOption);
 
-            // Self-bot is ready by default
-
-            players.set('454815', { username: 'nika_bot', status: 1 });
             setPlayerStatus(1);
 
             // Additional 'disconnect' event for handling random disconnections
@@ -171,11 +180,30 @@ async function run(client, interaction, db, shouldReconnect = false) {
                     embeds: [socketDisconnectEmbed.setDescription(`Reason: **${reason}**`)]
                 });
 
+                // Ensuring that data in 'players' is up-to-date after being reconnected
+
+                await socket.once('initialConnection', (data) => {
+                    const updatedPlayers = data.players;
+
+                    for (let updatedPlayer of updatedPlayers) {
+                        if (players.get(updatedPlayer.uid)) continue;
+
+                        players.set(updatedPlayer.uid, [ updatedPlayer.username, updatedPlayer.status ]);
+                    }
+                });
+
                 await reconnectToRoom();
 
                 // Bot status needs to be reverted back to 'ready' after reconnection
 
                 setPlayerStatus(1);
+            });
+
+            socket.on('error', (error) => {
+                logsChannel.send({
+                    content: '<@!600113325178880002>',
+                    embeds: [serverErrorEmbed.setDescription(`Error: **${error}**`)]
+                });
             });
 
             socket.on('playerJoined', (data) => {
@@ -196,7 +224,13 @@ async function run(client, interaction, db, shouldReconnect = false) {
             socket.on('playerStatusChanged', (uid, status) => {
                 console.log(`~ player status changed (uid: ${uid}, status: ${status})`);
 
-                players.get(uid).status = status;
+                let player = players.get(uid);
+
+                if (!player) {
+                    return console.log(`~ warning: tried to change status of unknown player (uid: ${uid})!`);
+                }
+
+                player.status = status;
 
                 // If room has more than 2 players (including bot) and everyone is ready, start match
 
@@ -280,6 +314,7 @@ async function run(client, interaction, db, shouldReconnect = false) {
                             // Otherwise mods are set to being free in case they weren't previously
 
                             if (!forceMods) {
+                                setPlayerMods(supportedForceMods['NM']);
                                 setRoomMods(supportedForceMods['NM']);
                                 setRoomFreeMods(true);
                                 
@@ -291,10 +326,9 @@ async function run(client, interaction, db, shouldReconnect = false) {
                             const forcedMod = archetypeOption.slice(0, 2);
 
                             if (forcedMod in supportedForceMods) {
-                                // Getting mod string and forcing it
-
-                                setRoomMods(supportedForceMods[forcedMod]);
                                 setRoomFreeMods(false);
+                                setPlayerMods(supportedForceMods[forcedMod]);
+                                setRoomMods(supportedForceMods[forcedMod]);
 
                                 messageRoomChat(`Set forced mod to ${forcedMod}`);
                             } else {
@@ -330,6 +364,9 @@ async function run(client, interaction, db, shouldReconnect = false) {
                             messageRoomChat('Skipped the beatmap');
                         }
                         break;
+                    // case 'kick':
+                    // case 'k':
+                    //     break;
                     case 'credits':
                     case 'c':
                         messageRoomChat(
@@ -420,13 +457,47 @@ async function run(client, interaction, db, shouldReconnect = false) {
 
         interaction.reply({ embeds: [roomStatusEmbed] });
     } else if (subcommandName == 'leaderboard') {
-        if (!socket) return interaction.reply('No connection is present!');
-
         // TODO
 
-        socket.on('liveScoreData', (data) => {
-            console.log(data);
-        });
+        if (!socket || !players) return interaction.reply('No connection is present!');
+
+        await interaction.reply({ embeds: [initializedLeaderboardEmbed] });
+
+        liveLeaderboardEmbed.spliceFields(0, liveLeaderboardEmbed.fields.length);
+
+        await interaction.channel.send({ embeds: [liveLeaderboardEmbed] })
+            .then((leaderboardMessage) => {
+                socket.on('liveScoreData', (liveScoreData) => {
+                    var liveScoreFields = [];
+
+                    liveScoreData.sort((a, b) => b.score - a.score);
+
+                    for (let i = 0; i < liveScoreData.length; i++) {
+                        let liveScore = liveScoreData[i];
+
+                        liveScoreFields.push({
+                            name: `#${i + 1} ${liveScore.username}`,
+                            value: 
+                                `Score: **${liveScore.score}** (${liveScore.combo}x), ` +
+                                `${(liveScore.accuracy * 100).toFixed(2)}%`
+                        });
+                    }
+
+                    liveLeaderboardEmbed.setFields(...liveScoreFields);
+                    leaderboardMessage.edit({ embeds: [liveLeaderboardEmbed] });
+                });
+
+                const roomMatchEndListener = (status) => {
+                    if (status != 0) return;
+
+                    interaction.channel.send('Match has ended.');
+
+                    socket.off('liveScoreData');
+                    socket.off('roomStatusChanged', roomMatchEndListener);
+                }
+
+                socket.on('roomStatusChanged', roomMatchEndListener);
+            });
     }
 }
 
