@@ -15,6 +15,8 @@ const createRoomPath = '/createroom';
 const osuUrl = 'https://osu.ppy.sh/';
 const beatmapPath = `api/get_beatmaps?k=${process.env.OSU_API_KEY}&h=`;
 
+// Name, password, etc. should be static because request sign depends on them
+
 const createRoomRequest = {
     'name': 'nika_bot\'s autolobby',
     'maxPlayers': 16,
@@ -76,8 +78,6 @@ async function getRooms() {
 
     return roomList;
 }
-
-// Name, password, etc. should be static because request sign depends on them
 
 async function createRoom() {
     var roomInfo = null;
@@ -180,8 +180,8 @@ async function changeRoomBeatmap(hash) {
     return true;
 }
 
-function setPlayerStatus(status) {
-    socket.emit('playerStatusChanged', status);
+async function setPlayerStatus(status) {
+    await socket.emit('playerStatusChanged', status);
     console.log(`~ changed player status to ${status}`);
 }
 
@@ -228,7 +228,7 @@ function setPlayerMods(mods) {
     };
 
     socket.emit('playerModsChanged', playerMods);
-    console.log('`~ changed player mods to', mods);
+    console.log('~ changed player mods to', mods);
 }
 
 function setRoomFreeMods(value) {
@@ -246,7 +246,12 @@ function setRoomMods(mods) {
     };
 
     socket.emit('roomModsChanged', roomMods);
-    console.log('`~ changed room mods to', mods);
+    console.log('~ changed room mods to', mods);
+}
+
+function kickPlayer(uid) {
+    socket.emit('playerKicked', uid);
+    console.log(`~ kicked player (uid: ${uid})`);
 }
 
 async function getRecentPlays(uid, index, amount) {
@@ -360,6 +365,7 @@ module.exports = {
     setRoomFreeMods,
     setRoomMods,
     setRoomName,
+    kickPlayer,
     getRecentPlays,
     getProfileDPP,
     getBeatmapInfoByHash
