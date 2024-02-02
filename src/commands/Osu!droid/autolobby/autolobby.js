@@ -3,8 +3,6 @@ const path = require('path');
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const { Collection } = require('discord.js');
 
-// Scanning for subcommands
-
 const subcommandsFolder = fs.readdirSync(path.resolve(__dirname, './subcommands'));
 
 if (subcommandsFolder.length > 0) {
@@ -19,6 +17,8 @@ if (subcommandsFolder.length > 0) {
         console.log(file);
     }
 }
+
+// Autolobby properties object
 
 var autolobby = {
     socket: null,

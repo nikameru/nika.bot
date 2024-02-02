@@ -74,7 +74,7 @@ async function pickRandomBeatmap(archetype) {
     const beatmapHash = pickRandomMapHash(archetype);
 
     if (!await droidApi.changeRoomBeatmap(beatmapHash)) {
-        droidApi.pickRandomBeatmap(archetype);
+        pickRandomBeatmap(archetype);
     }
 }
 
@@ -176,7 +176,9 @@ async function run(client, interaction, db, autolobby, shouldReconnect = false) 
         autolobby.socket.on('playerJoined', (data) => {
             console.log(`~ player joined: ${data.username} (uid: ${data.uid})`);
 
-            droidApi.messageRoomChat(`${data.username}, welcome to autolobby! Type /help to see available commands`);
+            droidApi.messageRoomChat(
+                `${data.username}, welcome to autolobby! Type /help to see available commands`
+            );
 
             autolobby.players.set(data.uid, { username: data.username, status: data.status });
         });
@@ -271,7 +273,9 @@ async function run(client, interaction, db, autolobby, shouldReconnect = false) 
                     let type = roomCommandArgs.length > 1 ? roomCommandArgs.join(' ') : roomCommandArgs[0];
 
                     if (!mapCollections.includes(type)) {
-                        droidApi.messageRoomChat(`No type ${type} found! Available types: ${mapCollections.join(', ')}`);
+                        droidApi.messageRoomChat(
+                            `No type ${type} found! Available types: ${mapCollections.join(', ')}`
+                        );
                     } else {
                         autolobby.archetype = type;
                     
