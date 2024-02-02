@@ -33,8 +33,6 @@ const supportedForceMods = {
     'NM': ''
 };
 
-const connectedToSocketEmitter = new EventEmitter();
-
 // Available map types collections
 
 var mapCollections = [];
@@ -53,6 +51,8 @@ for (let collection of parsedCollections) {
         mapCollections.push(name);
     }
 }
+
+const connectedToSocketEmitter = new EventEmitter();
 
 function isEveryoneReady(players) {
     for (let player of players.values()) {
@@ -75,6 +75,140 @@ async function pickRandomBeatmap(archetype) {
 
     if (!await droidApi.changeRoomBeatmap(beatmapHash)) {
         pickRandomBeatmap(archetype);
+    }
+}
+
+function handleRoomCommands(uid, message, autolobby) {
+    // Command handling
+
+    if (!message.startsWith('/')) return;
+
+    const roomCommandArgs = message.slice(1).split(' ');
+    const roomCommandName = roomCommandArgs.shift();
+
+    console.log(`~ command: ${roomCommandName} with args "${roomCommandArgs.join(', ')}"`);
+
+    switch (roomCommandName) {
+        case 'help':
+        case 'h':
+            droidApi.messageRoomChat(
+                '/help - Sends a list of bot\'s commands (/h), ' +
+                '/type [type] (forced) - Change picked beatmaps type (/t)'
+            );
+            droidApi.messageRoomChat(
+                '/skip - Start a vote for skipping current beatmap (/s), ' +
+                '/credits - Information about the bot (/c)'
+            );
+            break;
+        case 'type':
+        case 't':
+            var forceMods = false;
+
+            // Check if room should have corresponding mods forced (if supported)
+
+            if (roomCommandArgs.includes('forced')) {
+                roomCommandArgs.pop();
+
+                forceMods = true;
+            }
+
+            let type = roomCommandArgs.length > 1 ? roomCommandArgs.join(' ') : roomCommandArgs[0];
+
+            if (!mapCollections.includes(type)) {
+                droidApi.messageRoomChat(
+                    `No type ${type} found! Available types: ${mapCollections.join(', ')}`
+                );
+            } else {
+                autolobby.archetype = type;
+
+                // Changing room name to display current map type
+
+                droidApi.setRoomName(`『${autolobby.archetype}』autolobby`);
+
+                // Skipping current beatmap so that type change has effect immediately
+
+                pickRandomBeatmap(autolobby.archetype);
+
+                // Forcing corresponding mod if needed
+                // Otherwise mods are set to being free in case they weren't previously
+
+                if (!forceMods) {
+                    droidApi.setPlayerMods(supportedForceMods['NM']);
+                    droidApi.setRoomMods(supportedForceMods['NM']);
+                    droidApi.setRoomFreeMods(true);
+
+                    return;
+                }
+
+                // First two symbols of the current type, so DT, HR, etc.
+
+                const forcedMod = autolobby.archetype.slice(0, 2);
+
+                if (forcedMod in supportedForceMods) {
+                    droidApi.setRoomFreeMods(false);
+                    droidApi.setPlayerMods(supportedForceMods[forcedMod]);
+                    droidApi.setRoomMods(supportedForceMods[forcedMod]);
+                } else {
+                    droidApi.messageRoomChat(
+                        `There aren\'t any mods that can be forced for type "${autolobby.archetype}"!`
+                    );
+                }
+            }
+            break;
+        case 'skip':
+        case 's':
+            if (autolobby.playersSkipped.has(uid)) {
+                return droidApi.messageRoomChat('You\'ve already voted!');
+            }
+
+            autolobby.playersSkipped.add(uid);
+
+            if (autolobby.playersSkipped.size == 1) {
+                droidApi.messageRoomChat(
+                    `Started beatmap skip voting (1/${autolobby.players.size - 1} voted, ` +
+                    `${Math.ceil(0.5 * (autolobby.players.size - 1))} required)`
+                );
+            } else {
+                droidApi.messageRoomChat(
+                    `${autolobby.playersSkipped.size}/${autolobby.players.size - 1} voted ` +
+                    `(${Math.ceil(0.5 * (autolobby.players.size - 1))} required)`
+                );
+            }
+
+            if (autolobby.playersSkipped.size / (autolobby.players.size - 1) >= 0.5) {
+                // Not clearing playersSkipped because that is done when beatmap is changed
+
+                pickRandomBeatmap(autolobby.archetype);
+            }
+            break;
+        case 'kick':
+        case 'k':
+            // TODO: kick voting (locked temporarily to avoid command abuse)
+            if (uid != '163476' || uid == '454815') return;
+
+            let playerUid = roomCommandArgs[0] || null;
+
+            if (!playerUid) {
+                return droidApi.messageRoomChat('Please specify uid of the player you want to kick!');
+            } else if (!autolobby.players.get(playerUid)) {
+                return droidApi.messageRoomChat('There\'s no such player in the room!');
+            }
+
+            droidApi.kickPlayer(playerUid);
+            break;
+        case 'credits':
+        case 'c':
+            droidApi.messageRoomChat(
+                'This bot is made for autopicking beatmaps ' +
+                'in osu!droid multiplayer based on the chosen map type. ' +
+                'Credits: nikameru (development), unclem (map library)'
+            );
+            break;
+        default:
+            droidApi.messageRoomChat(
+                `No command ${roomCommandName} found! See /help for available commands.`
+            );
+            break;
     }
 }
 
@@ -140,7 +274,7 @@ async function run(client, interaction, db, autolobby, shouldReconnect = false) 
         autolobby.socket.on('disconnect', async (reason) => {
             if (reason == 'io client disconnect') return;
 
-            logsChannel.send({
+            await logsChannel.send({
                 content: '<@!600113325178880002>',
                 embeds: [socketDisconnectEmbed.setDescription(`Reason: **${reason}**`)]
             });
@@ -151,8 +285,6 @@ async function run(client, interaction, db, autolobby, shouldReconnect = false) 
                 const updatedPlayers = data.players;
 
                 for (let updatedPlayer of updatedPlayers) {
-                    if (autolobby.players.get(updatedPlayer.uid)) continue;
-
                     autolobby.players.set(updatedPlayer.uid, [updatedPlayer.username, updatedPlayer.status]);
                 }
             });
@@ -234,140 +366,12 @@ async function run(client, interaction, db, autolobby, shouldReconnect = false) 
             // Creating new room in order not to get kicked for inactivity in case nobody plays
 
             if (!uid && message.includes('host will be kicked for inactivity')) {
-                return run(client, interaction, null, true);
+                return run(client, interaction, null, autolobby, true);
             }
 
-            // Command handling
+            // Handle commands
 
-            if (!message.startsWith('/')) return;
-
-            const roomCommandArgs = message.slice(1).split(' ');
-            const roomCommandName = roomCommandArgs.shift();
-
-            console.log(`~ command: ${roomCommandName} with args "${roomCommandArgs.join(', ')}"`);
-
-            switch (roomCommandName) {
-                case 'help':
-                case 'h':
-                    droidApi.messageRoomChat(
-                        '/help - Sends a list of bot\'s commands (/h), ' +
-                        '/type [type] (forced) - Change picked beatmaps type (/t)'
-                    );
-                    droidApi.messageRoomChat(
-                        '/skip - Start a vote for skipping current beatmap (/s), ' +
-                        '/credits - Information about the bot (/c)'
-                    );
-                    break;
-                case 'type':
-                case 't':
-                    var forceMods = false;
-
-                    // Check if room should have corresponding mods forced (if supported)
-
-                    if (roomCommandArgs.includes('forced')) {
-                        roomCommandArgs.pop();
-
-                        forceMods = true;
-                    }
-
-                    let type = roomCommandArgs.length > 1 ? roomCommandArgs.join(' ') : roomCommandArgs[0];
-
-                    if (!mapCollections.includes(type)) {
-                        droidApi.messageRoomChat(
-                            `No type ${type} found! Available types: ${mapCollections.join(', ')}`
-                        );
-                    } else {
-                        autolobby.archetype = type;
-                    
-                        // Changing room name to display current map type
-
-                        droidApi.setRoomName(`『${autolobby.archetype}』autolobby`);
-
-                        // Skipping current beatmap so that type change has effect immediately
-
-                        pickRandomBeatmap(autolobby.archetype);
-
-                        // Forcing corresponding mod if needed
-                        // Otherwise mods are set to being free in case they weren't previously
-
-                        if (!forceMods) {
-                            droidApi.setPlayerMods(supportedForceMods['NM']);
-                            droidApi.setRoomMods(supportedForceMods['NM']);
-                            droidApi.setRoomFreeMods(true);
-
-                            return;
-                        }
-
-                        // First two symbols of the current type, so DT, HR, etc.
-
-                        const forcedMod = autolobby.archetype.slice(0, 2);
-
-                        if (forcedMod in supportedForceMods) {
-                            droidApi.setRoomFreeMods(false);
-                            droidApi.setPlayerMods(supportedForceMods[forcedMod]);
-                            droidApi.setRoomMods(supportedForceMods[forcedMod]);
-                        } else {
-                            droidApi.messageRoomChat(
-                                `There aren\'t any mods that can be forced for type "${autolobby.archetype}"!`
-                            );
-                        }
-                    }
-                    break;
-                case 'skip':
-                case 's':
-                    if (autolobby.playersSkipped.has(uid)) {
-                        return droidApi.messageRoomChat('You\'ve already voted!');
-                    }
-
-                    autolobby.playersSkipped.add(uid);
-
-                    if (autolobby.playersSkipped.size == 1) {
-                        droidApi.messageRoomChat(
-                            `Started beatmap skip voting (1/${autolobby.players.size - 1} voted, ` +
-                            `${Math.ceil(0.5 * (autolobby.players.size - 1))} required)`
-                        );
-                    } else {
-                        droidApi.messageRoomChat(
-                            `${autolobby.playersSkipped.size}/${autolobby.players.size - 1} voted ` +
-                            `(${Math.ceil(0.5 * (autolobby.players.size - 1))} required)`
-                        );
-                    }
-
-                    if (autolobby.playersSkipped.size / (autolobby.players.size - 1) >= 0.5) {
-                        // Not clearing playersSkipped because that is done when beatmap is changed
-
-                        pickRandomBeatmap(autolobby.archetype);
-                    }
-                    break;
-                case 'kick':
-                case 'k':
-                    // TODO: kick voting (locked temporarily to avoid command abuse)
-                    if (uid != '163476' || uid == '454815') return;
-
-                    let playerUid = roomCommandArgs[0] || null;
-
-                    if (!playerUid) {
-                        return droidApi.messageRoomChat('Please specify uid of the player you want to kick!');
-                    } else if (!autolobby.players.get(playerUid)) {
-                        return droidApi.messageRoomChat('There\'s no such player in the room!');
-                    }
-
-                    droidApi.kickPlayer(playerUid);
-                    break;
-                case 'credits':
-                case 'c':
-                    droidApi.messageRoomChat(
-                        'This bot is made for autopicking beatmaps ' +
-                        'in osu!droid multiplayer based on the chosen map type. ' +
-                        'Credits: nikameru (development), unclem (map library)'
-                    );
-                    break;
-                default:
-                    droidApi.messageRoomChat(
-                        `No command ${roomCommandName} found! See /help for available commands.`
-                    );
-                    break;
-            }
+            handleRoomCommands(uid, message, autolobby);
         });
 
         autolobby.socket.on('beatmapChanged', (map) => {
