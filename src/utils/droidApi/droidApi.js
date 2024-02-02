@@ -101,7 +101,7 @@ async function createRoom() {
 
 function connectToRoom(roomId, connectedEmitter) {
     if (socket) {
-        console.log('~ reconnecting to socket');
+        console.log('~ socket instance is already present. creating another room...');
         disconnectFromRoom();
     }
 

@@ -4,6 +4,7 @@ const path = require('path');
 const wait = require('node:timers/promises').setTimeout;
 const EventEmitter = require('node:events');
 const droidApi = require('../../../../utils/droidApi/droidApi.js');
+const leaderboard = require('./leaderboard.js');
 
 const somethingWentWrongEmbed = new MessageEmbed()
     .setColor('#ff4646')
@@ -70,10 +71,10 @@ function pickRandomMapHash(archetype) {
     return sortedMaps.hashes[Math.floor(Math.random() * (sortedMaps.size - 1))];
 }
 
-async function pickRandomBeatmap(archetype) {
+function pickRandomBeatmap(archetype) {
     const beatmapHash = pickRandomMapHash(archetype);
 
-    if (!await droidApi.changeRoomBeatmap(beatmapHash)) {
+    if (!droidApi.changeRoomBeatmap(beatmapHash)) {
         pickRandomBeatmap(archetype);
     }
 }
@@ -250,7 +251,7 @@ async function run(client, interaction, db, autolobby, shouldReconnect = false) 
         // Setting variables as it is *initial* connection
 
         autolobby.socket = connectedSocket;
-        autolobby.roomStatus = 0;
+        autolobby.status = 0;
         autolobby.players = new Map();
         autolobby.playersSkipped = new Set();
 
@@ -265,7 +266,7 @@ async function run(client, interaction, db, autolobby, shouldReconnect = false) 
 
         // Force setting initial map
 
-        await pickRandomBeatmap(autolobby.archetype);
+        pickRandomBeatmap(autolobby.archetype);
 
         await droidApi.setPlayerStatus(1);
 
@@ -338,11 +339,15 @@ async function run(client, interaction, db, autolobby, shouldReconnect = false) 
             if (autolobby.players.size >= 2 && isEveryoneReady(autolobby.players)) {
                 droidApi.messageRoomChat('Starting match in 5 seconds...');
 
+                // Initialize live leaderboard log for upcoming match
+                
+                leaderboard.run(client, interaction, db, autolobby, true);
+
                 (async () => {
                     await wait(5000);
 
                     // To ensure that bot isn't alone by the time these 5 seconds elaspe
-
+                    
                     if (autolobby.players.size < 2) return;
                     await droidApi.roomMatchPlay();
                 })();
@@ -366,7 +371,7 @@ async function run(client, interaction, db, autolobby, shouldReconnect = false) 
             // Creating new room in order not to get kicked for inactivity in case nobody plays
 
             if (!uid && message.includes('host will be kicked for inactivity')) {
-                return run(client, interaction, null, autolobby, true);
+                return run(client, interaction, db, autolobby, true);
             }
 
             // Handle commands
@@ -380,10 +385,12 @@ async function run(client, interaction, db, autolobby, shouldReconnect = false) 
             autolobby.playersSkipped.clear();
 
             droidApi.messageRoomChat(`Changed beatmap to ${map.artist} - ${map.title} [${map.version}]`);
+
+            autolobby.beatmap = map.md5;
         });
 
         autolobby.socket.on('roomStatusChanged', (status) => {
-            console.log(`~ room status changed: ${autolobby.roomStatus} -> ${status}`);
+            console.log(`~ room status changed: ${autolobby.status} -> ${status}`);
 
             // Ensuring that status has *changed* to 0 to avoid looped beatmap changing
 
@@ -393,14 +400,14 @@ async function run(client, interaction, db, autolobby, shouldReconnect = false) 
 
                 droidApi.setPlayerStatus(1);
 
-                if (status != autolobby.roomStatus) {
+                if (status != autolobby.status) {
                     console.log(`~ changing beatmap...`);
 
                     pickRandomBeatmap(autolobby.archetype);
                 }
             }
 
-            autolobby.roomStatus = status;
+            autolobby.status = status;
         });
     });
 

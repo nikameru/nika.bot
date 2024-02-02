@@ -1,4 +1,4 @@
-const { Client, Intents, Collection, MessageEmbed } = require('discord.js');
+const { Client, Intents, Collection } = require('discord.js');
 const { MongoClient } = require('mongodb');
 const dotenv = require('dotenv');
 const fs = require('node:fs');

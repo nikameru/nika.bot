@@ -20,10 +20,11 @@ if (subcommandsFolder.length > 0) {
 
 // Autolobby properties object
 
-var autolobby = {
+const autolobby = {
     socket: null,
     archetype: null,
-    roomStatus: null,
+    beatmap: null,
+    status: null,
     players: null,
     playersSkipped: null
 };
