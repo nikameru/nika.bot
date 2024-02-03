@@ -9,6 +9,7 @@ const droidDPPUrl = 'http://droidpp.osudroid.moe/profile/';
 const profilePath = 'profile.php?uid=';
 
 const droidMultiUrl = 'https://multi.osudroid.moe';
+const droidMultiInvite = 'https://odmp/';
 const getRoomsPath = '/getrooms';
 const createRoomPath = '/createroom';
 
@@ -352,6 +353,7 @@ async function getBeatmapInfoByHash(hash) {
 }
 
 module.exports = {
+    droidMultiInvite,
     getRooms, 
     createRoom,
     connectToRoom, 

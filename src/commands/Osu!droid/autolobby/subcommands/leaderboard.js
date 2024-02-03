@@ -5,20 +5,23 @@ const initializedLeaderboardEmbed = new MessageEmbed()
     .setColor('#99ec00')
     .setDescription('✅ **| Started watching room matches!**');
 
-async function loadEmbedBeatmapInfo(embed, autolobby) {
+
+// TODO: make 'autolobby.beatmap' contain all the info instead of a single hash
+
+async function loadEmbedMatchInfo(embed, autolobby) {
     const res = await getBeatmapInfoByHash(autolobby.beatmap);
 
     if (!res[0]) {
         return console.log('~ [getRoomBeatmapInfo] beatmap not found!');
     }
 
-    const roomBeatmapInfo = ''.concat(
+    const roomMatchInfo = ''.concat(
         `- Song: ${res[0].artist} - **${res[0].title}**\n` +
         `- Difficulty: [*${res[0].version}*] (mapped by *${res[0].creator}*)\n` +
         `- Beatmap: [download](https://osu.ppy.sh/beatmaps/${res[0].beatmap_id})\n\n`
     );
 
-    embed.setDescription(roomBeatmapInfo)
+    embed.setDescription(roomMatchInfo)
         .setThumbnail(`https://b.ppy.sh/thumb/${res[0].beatmapset_id}l.jpg`);
 }
 
@@ -52,7 +55,7 @@ async function run(client, interaction, db, autolobby, isAutoleaderboard = false
                     liveLeaderboardEmbed.setTitle('🟢 | Autolobby live leaderboard')
                         .setDescription('*Loading match info...*');
 
-                    loadEmbedBeatmapInfo(liveLeaderboardEmbed, autolobby);
+                    loadEmbedMatchInfo(liveLeaderboardEmbed, autolobby);
 
                     isPlaying = true;
                 }

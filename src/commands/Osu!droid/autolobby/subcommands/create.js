@@ -57,7 +57,7 @@ const connectedToSocketEmitter = new EventEmitter();
 
 function isEveryoneReady(players) {
     for (let player of players.values()) {
-        if (player.status != 1) {
+        if (player.status !== 1) {
             return false;
         }
     }
@@ -82,8 +82,6 @@ function pickRandomBeatmap(archetype) {
 function handleRoomCommands(uid, message, autolobby) {
     // Command handling
 
-    if (!message.startsWith('/')) return;
-
     const roomCommandArgs = message.slice(1).split(' ');
     const roomCommandName = roomCommandArgs.shift();
 
@@ -98,7 +96,7 @@ function handleRoomCommands(uid, message, autolobby) {
             );
             droidApi.messageRoomChat(
                 '/skip - Start a vote for skipping current beatmap (/s), ' +
-                '/credits - Information about the bot (/c)'
+                '/info - Information about the bot (/i)'
             );
             break;
         case 'type':
@@ -164,7 +162,7 @@ function handleRoomCommands(uid, message, autolobby) {
 
             autolobby.playersSkipped.add(uid);
 
-            if (autolobby.playersSkipped.size == 1) {
+            if (autolobby.playersSkipped.size === 1) {
                 droidApi.messageRoomChat(
                     `Started beatmap skip voting (1/${autolobby.players.size - 1} voted, ` +
                     `${Math.ceil(0.5 * (autolobby.players.size - 1))} required)`
@@ -185,7 +183,8 @@ function handleRoomCommands(uid, message, autolobby) {
         case 'kick':
         case 'k':
             // TODO: kick voting (locked temporarily to avoid command abuse)
-            if (uid != '163476' || uid == '454815') return;
+            
+            if (uid !== '163476' || uid === '454815') return;
 
             let playerUid = roomCommandArgs[0] || null;
 
@@ -197,8 +196,8 @@ function handleRoomCommands(uid, message, autolobby) {
 
             droidApi.kickPlayer(playerUid);
             break;
-        case 'credits':
-        case 'c':
+        case 'info':
+        case 'i':
             droidApi.messageRoomChat(
                 'This bot is made for autopicking beatmaps ' +
                 'in osu!droid multiplayer based on the chosen map type. ' +
@@ -235,7 +234,7 @@ async function run(client, interaction, db, autolobby, shouldReconnect = false) 
 
     if (shouldReconnect) {
         createdRoomEmbed.setDescription(
-            `✅ **| Created __new__ autolobby due to inactivity kick alert with default map type ("NM1").**`
+            `✅ **| Created __new__ autolobby due to inactivity kick alert.**`
         );
 
         await interaction.channel.send({ embeds: [createdRoomEmbed] });
@@ -251,6 +250,7 @@ async function run(client, interaction, db, autolobby, shouldReconnect = false) 
         // Setting variables as it is *initial* connection
 
         autolobby.socket = connectedSocket;
+        autolobby.id = roomInfo.id;
         autolobby.status = 0;
         autolobby.players = new Map();
         autolobby.playersSkipped = new Set();
@@ -273,7 +273,7 @@ async function run(client, interaction, db, autolobby, shouldReconnect = false) 
         // Additional 'disconnect' event for handling random disconnections
 
         autolobby.socket.on('disconnect', async (reason) => {
-            if (reason == 'io client disconnect') return;
+            if (reason === 'io client disconnect') return;
 
             await logsChannel.send({
                 content: '<@!600113325178880002>',
@@ -286,7 +286,10 @@ async function run(client, interaction, db, autolobby, shouldReconnect = false) 
                 const updatedPlayers = data.players;
 
                 for (let updatedPlayer of updatedPlayers) {
-                    autolobby.players.set(updatedPlayer.uid, [updatedPlayer.username, updatedPlayer.status]);
+                    autolobby.players.set(updatedPlayer.uid, [
+                        updatedPlayer.username,
+                        updatedPlayer.status
+                    ]);
                 }
             });
 
@@ -316,12 +319,17 @@ async function run(client, interaction, db, autolobby, shouldReconnect = false) 
             autolobby.players.set(data.uid, { username: data.username, status: data.status });
         });
 
-        autolobby.socket.on('playerLeft', (uid) => {
-            console.log(`~ player left (uid: ${uid})`);
+        // For both 'playerLeft' and 'playerKicked' events
+
+        const playerLeftListener = (uid) => {
+            console.log(`~ player left (kicked) (uid: ${uid})`);
 
             autolobby.players.delete(uid);
             autolobby.playersSkipped.delete(uid);
-        });
+        }
+        
+        autolobby.socket.on('playerLeft', playerLeftListener);
+        autolobby.socket.on('playerKicked', playerLeftListener);
 
         autolobby.socket.on('playerStatusChanged', (uid, status) => {
             console.log(`~ player status changed (uid: ${uid}, status: ${status})`);
@@ -338,10 +346,6 @@ async function run(client, interaction, db, autolobby, shouldReconnect = false) 
 
             if (autolobby.players.size >= 2 && isEveryoneReady(autolobby.players)) {
                 droidApi.messageRoomChat('Starting match in 5 seconds...');
-
-                // Initialize live leaderboard log for upcoming match
-                
-                leaderboard.run(client, interaction, db, autolobby, true);
 
                 (async () => {
                     await wait(5000);
@@ -362,7 +366,7 @@ async function run(client, interaction, db, autolobby, shouldReconnect = false) 
                 value: message
             });
 
-            if (roomChatLogEmbed.fields.length == 5) {
+            if (roomChatLogEmbed.fields.length === 5) {
                 logsChannel.send({ embeds: [roomChatLogEmbed.setTimestamp()] });
 
                 roomChatLogEmbed.spliceFields(0, 5);
@@ -376,6 +380,7 @@ async function run(client, interaction, db, autolobby, shouldReconnect = false) 
 
             // Handle commands
 
+            if (!message.startsWith('/')) return;
             handleRoomCommands(uid, message, autolobby);
         });
 
@@ -394,17 +399,21 @@ async function run(client, interaction, db, autolobby, shouldReconnect = false) 
 
             // Ensuring that status has *changed* to 0 to avoid looped beatmap changing
 
-            if (status == 0) {
-                // New room status means players have to press ready again
+            if (status === 0) {
+                // Room status changed requires players pressing ready again
                 // Because of that bot status is changed only at this point
 
                 droidApi.setPlayerStatus(1);
 
-                if (status != autolobby.status) {
+                if (status !== autolobby.status) {
                     console.log(`~ changing beatmap...`);
 
                     pickRandomBeatmap(autolobby.archetype);
                 }
+            } else if (status === 2) {
+                // Initialize live leaderboard log for upcoming match
+
+                leaderboard.run(client, interaction, db, autolobby, true);
             }
 
             autolobby.status = status;
@@ -412,6 +421,7 @@ async function run(client, interaction, db, autolobby, shouldReconnect = false) 
     });
 
     droidApi.connectToRoom(roomInfo.id, connectedToSocketEmitter);
+    client.user.setActivity(droidApi.droidMultiInvite + roomInfo.id, { type: 'PLAYING' });
 }
 
 const config = {

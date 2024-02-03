@@ -21,12 +21,13 @@ if (subcommandsFolder.length > 0) {
 // Autolobby properties object
 
 const autolobby = {
-    socket: null,
-    archetype: null,
-    beatmap: null,
-    status: null,
-    players: null,
-    playersSkipped: null
+    socket: null,           // Current socket instance
+    id: null,               // Autolobby room id
+    archetype: null,        // Picked maps archetype
+    beatmap: null,          // Current beatmap
+    status: null,           // Autolobby room status
+    players: null,          // Players information
+    playersSkipped: null    // For handling '/skip' voting
 };
 
 async function run(client, interaction, db) {

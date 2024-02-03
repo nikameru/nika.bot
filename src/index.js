@@ -43,6 +43,7 @@ fs.readdir('./commands', (err, folders) => {
     });
 });
 
+/*
 client.once('ready', () => {
     setInterval(() => {
         const memUsed = Math.round((os.totalmem() - os.freemem()) / os.totalmem() * 100);
@@ -53,6 +54,7 @@ client.once('ready', () => {
         client.user.setActivity(status, { type: 'PLAYING' });
     }, 10000);
 });
+*/
 
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isCommand()) return;
