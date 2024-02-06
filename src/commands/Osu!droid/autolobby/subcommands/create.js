@@ -6,6 +6,8 @@ const EventEmitter = require('node:events');
 const droidApi = require('../../../../utils/droidApi/droidApi.js');
 const leaderboard = require('./leaderboard.js');
 
+const discordLink = 'discord.gg/UgTCFrQh4w';
+
 const somethingWentWrongEmbed = new MessageEmbed()
     .setColor('#ff4646')
     .setDescription('❌ **| Something went wrong.**');
@@ -19,11 +21,7 @@ const serverErrorEmbed = new MessageEmbed()
     .setColor('#ff4646');
 
 const roomChatLogEmbed = new MessageEmbed()
-    .setTitle('💬 | Autolobby chat log')
     .setColor('#4cd0ff');
-
-const createdRoomEmbed = new MessageEmbed()
-    .setColor('#99ec00');
 
 // Forced mods that can be enabled based on picked map type
 
@@ -80,8 +78,6 @@ function pickRandomBeatmap(archetype) {
 }
 
 function handleRoomCommands(uid, message, autolobby) {
-    // Command handling
-
     const roomCommandArgs = message.slice(1).split(' ');
     const roomCommandName = roomCommandArgs.shift();
 
@@ -91,12 +87,13 @@ function handleRoomCommands(uid, message, autolobby) {
         case 'help':
         case 'h':
             droidApi.messageRoomChat(
-                '/help - Sends a list of bot\'s commands (/h), ' +
-                '/type [type] (forced) - Change picked beatmaps type (/t)'
+                '/help - Bot commands (/h); ' +
+                '/type [type] (forced) - Change beatmaps type (/t); ' +
+                '/skip - Start a vote for skipping current beatmap (/s); ' +
+                '/info - Information about the bot (/i)'
             );
             droidApi.messageRoomChat(
-                '/skip - Start a vote for skipping current beatmap (/s), ' +
-                '/info - Information about the bot (/i)'
+                'Discord (get support, match up, spectate): ' + discordLink
             );
             break;
         case 'type':
@@ -119,8 +116,6 @@ function handleRoomCommands(uid, message, autolobby) {
                 );
             } else {
                 autolobby.archetype = type;
-
-                // Changing room name to display current map type
 
                 droidApi.setRoomName(`『${autolobby.archetype}』autolobby`);
 
@@ -175,7 +170,7 @@ function handleRoomCommands(uid, message, autolobby) {
             }
 
             if (autolobby.playersSkipped.size / (autolobby.players.size - 1) >= 0.5) {
-                // Not clearing playersSkipped because that is done when beatmap is changed
+                // Not clearing 'playersSkipped' because that is done when beatmap is changed
 
                 pickRandomBeatmap(autolobby.archetype);
             }
@@ -183,7 +178,7 @@ function handleRoomCommands(uid, message, autolobby) {
         case 'kick':
         case 'k':
             // TODO: kick voting (locked temporarily to avoid command abuse)
-            
+
             if (uid !== '163476' || uid === '454815') return;
 
             let playerUid = roomCommandArgs[0] || null;
@@ -203,6 +198,9 @@ function handleRoomCommands(uid, message, autolobby) {
                 'in osu!droid multiplayer based on the chosen map type. ' +
                 'Credits: nikameru (development), unclem (map library)'
             );
+            droidApi.messageRoomChat(
+                'Discord (get support, match up, spectate): ' + discordLink
+            );
             break;
         default:
             droidApi.messageRoomChat(
@@ -213,7 +211,7 @@ function handleRoomCommands(uid, message, autolobby) {
 }
 
 async function run(client, interaction, db, autolobby, shouldReconnect = false) {
-    const logsChannel = await client.channels.fetch('943228757387407400');
+    const logsChannel = await client.channels.fetch('1202943348986617896');
 
     if (shouldReconnect) {
         // Default map type
@@ -231,6 +229,9 @@ async function run(client, interaction, db, autolobby, shouldReconnect = false) 
 
     var roomInfo = await droidApi.createRoom();
     if (!roomInfo) return interaction.channel.send({ embeds: [somethingWentWrongEmbed] });
+
+    const createdRoomEmbed = new MessageEmbed()
+        .setColor('#99ec00');
 
     if (shouldReconnect) {
         createdRoomEmbed.setDescription(
@@ -263,8 +264,6 @@ async function run(client, interaction, db, autolobby, shouldReconnect = false) 
 
         droidApi.setRoomFreeMods(true);
         droidApi.setRoomName(`『${autolobby.archetype}』autolobby`);
-
-        // Force setting initial map
 
         pickRandomBeatmap(autolobby.archetype);
 

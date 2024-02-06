@@ -29,7 +29,7 @@ async function run(client, interaction, db, autolobby, isAutoleaderboard = false
     var leaderboardChannel;
 
     if (isAutoleaderboard) {
-        leaderboardChannel = await client.channels.fetch('1202905240693641316');
+        leaderboardChannel = await client.channels.fetch('1202934321514811452');
 
         if (!autolobby.socket) return leaderboardChannel.send('No connection is present!');
     } else {
