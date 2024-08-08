@@ -38,7 +38,7 @@ var mapCollections = [];
 
 // Scanning maps library
 
-const parsedCollections = fs.readdirSync(path.resolve(__dirname, '../../../../data/maps'));
+const parsedCollections = fs.readdirSync(path.resolve(__dirname, '../../../../data/autolobby/maps'));
 
 if (!parsedCollections) return;
 
@@ -310,7 +310,6 @@ async function run(client, interaction, db, autolobby, shouldReconnect = false) 
 
         autolobby.socket.on('playerJoined', (data) => {
             console.log(`~ player joined: ${data.username} (uid: ${data.uid})`);
-
             droidApi.messageRoomChat(
                 `${data.username}, welcome to autolobby! Type /help to see available commands`
             );
