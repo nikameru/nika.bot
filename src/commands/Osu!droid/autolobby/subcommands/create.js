@@ -38,7 +38,7 @@ var mapCollections = [];
 
 // Scanning maps library
 
-const parsedCollections = fs.readdirSync(path.resolve(__dirname, '../../../../data/autolobby/maps'));
+const parsedCollections = fs.readdirSync(path.resolve(__dirname, '../../../../data/Autolobby maps'));
 
 if (!parsedCollections) return;
 
