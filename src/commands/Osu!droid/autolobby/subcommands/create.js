@@ -64,7 +64,7 @@ function isEveryoneReady(players) {
 }
 
 function pickRandomMapHash(archetype) {
-    const sortedMaps = require(`../../../../data/maps/${archetype}.json`);
+    const sortedMaps = require(`../../../../data/Autolobby maps/${archetype}.json`);
 
     return sortedMaps.hashes[Math.floor(Math.random() * (sortedMaps.size - 1))];
 }
